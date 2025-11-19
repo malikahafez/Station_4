@@ -26,20 +26,20 @@
  * Types/enumerations/variables
  ******************************************************************************/
 // send only one byte per transfer, see WriteRegister functions
-#define BUFFER_SIZE  1 
+#define BUFFER_SIZE 64     // FIFO size
 // Defined as 4MHz in the original library
 #define MFRC522_BIT_RATE 4000000 
 // Used for ADT object allocation
 #define MFRC_MAX_INSTANCES 2	 
 // Reset pin to MFRC522
-#define RESET_PIN 20
+#define RESET_PIN 21
 
 static const uint8_t FIFO_SIZE = 64; // Size of the MFRC522 FIFO
 
-static const uint cs_pin = 17;
-static const uint sck_pin = 18;
-static const uint mosi_pin = 19;
-static const uint miso_pin = 16;
+static const uint cs_pin = 5;
+static const uint sck_pin = 6;
+static const uint mosi_pin = 7;
+static const uint miso_pin = 4;
 
 static const uint8_t SELF_TEST_BYTES[] = {
 	0x00, 0xEB, 0x66, 0xBA, 0x57, 0xBF, 0x23, 0x95,

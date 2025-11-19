@@ -1,30 +1,42 @@
-#ifndef RFID_READER_DRIVER
-#define RFID_READER_DRIVER
+#ifndef RFID_READER_DRIVER_H
+#define RFID_READER_DRIVER_H
 
 #include <stdbool.h>
 #include <stdint.h>
-#include "mfrc522.h" // Include the 3rd party C library header
+#include "hardware/spi.h"
+#include "pico/stdlib.h"
+#include "mfrc522.h"    // 3rd-party MFRC522 library
 
-// #define RFID_SDA_PIN 10//d10/gpio5
-// #define RFID_SCK_PIN 13//d13/gpio6
-// #define RFID_COPI_PIN 11//d11/gpio7/COPI
-// #define RFID_CIPO_PIN 12//d12/gpio4/CIPO
-// #define RFID_RST_PIN 9//d9/gpio21
+// State for the driver
+typedef struct {
+    bool card_present;    // true if card currently on reader
+    char uid_buffer[32];  // formatted UID string
+} RFID_State;
 
-// Use the GPIO numbers based on your wiring list
-#define RFID_SS_GPIO_PIN      5  // D10 / GPIO 5
-#define RFID_SCK_GPIO_PIN     6  // D13 / GPIO 6
-#define RFID_COPI_GPIO_PIN    7  // D11 / GPIO 7 (MOSI)
-#define RFID_CIPO_GPIO_PIN    4  // D12 / GPIO 4 (MISO)
-#define RFID_RST_GPIO_PIN     21 // D9  / GPIO 21
+// ----------------------
+//  SPI & PIN Definitions
+// ----------------------
 
-// // The pins are defined by GPIO number
-// #define RFID_SS_GPIO_PIN     10 // SDA/SS (Slave Select) Pin 
-// #define RFID_RST_GPIO_PIN    9  // RST Pin 
+#define RFID_SPI_PORT           spi0
 
-// Function Prototypes for main.c
-void rfid_init();
-bool rfid_is_card_present();
-const char* rfid_read_card_uid(); 
+#define RFID_MOSI_GPIO_PIN      7   // GPIO 7  (SPI0 MOSI)
+#define RFID_MISO_GPIO_PIN      4   // GPIO 4  (SPI0 MISO)
+#define RFID_SCK_GPIO_PIN       6   // GPIO 6  (SPI0 SCK)
+
+#define RFID_CS_GPIO_PIN        5   // GPIO 5 (CS)
+#define RFID_RST_GPIO_PIN       21  // GPIO 21 (RST)
+
+// ----------------------
+//  Public API
+// ----------------------
+
+void rfid_init(void);
+bool rfid_is_card_present(void);
+const char* rfid_read_card_uid(void);
+bool rfid_debug_read_raw(void);
+const char* rfid_wait_for_card_once();
+
+void rfid_driver_init(RFID_State* state);
+const char* rfid_driver_poll(RFID_State* state);
 
 #endif // RFID_READER_DRIVER_H

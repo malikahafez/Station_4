@@ -2261,6 +2261,9 @@ bool PICC_IsNewCardPresent(MFRC522Ptr_t mfrc) {
  */
 bool PICC_ReadCardSerial(MFRC522Ptr_t mfrc) {
 	StatusCode result = PICC_Select(mfrc, &(mfrc->uid), 0);
+	printf("uid.size = %u\n", mfrc->uid.size);
+	for(int i = 0; i < mfrc->uid.size; i++)
+		printf("uid[%d]=0x%02X\n", i, mfrc->uid.uidByte[i]);																				
 	return (result == STATUS_OK);
 } // End
 

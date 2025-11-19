@@ -18,9 +18,12 @@
 //max 640 //mid 615 //low 320
 
 // Define calibration points for nonlinear mapping:
-#define CALIB_DRY_RAW   22 // New minimum value (0% level)
-#define CALIB_MID_RAW   2200 // New midpoint value (50% level)
-#define CALIB_WET_RAW   2330 // New maximum value (100% level)
+// UPDATED: Set minimum reading to 1600 (0% level)
+#define CALIB_DRY_RAW   1600 
+// UPDATED: Calculate midpoint (average of 1600 and 2150 = 1875)
+#define CALIB_MID_RAW   1875 
+// UPDATED: Set maximum reading to 2150 (100% level)
+#define CALIB_WET_RAW   2150
 
 // Function declarations
 void water_sensor_init();
