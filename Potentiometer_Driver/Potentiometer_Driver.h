@@ -5,7 +5,6 @@
 #include "hardware/adc.h"       // SDK ADC specific functions
 #include "hardware/gpio.h"      // SDK GPIO functions
 #include "utils.h"
-
 #include <stdint.h>
 
 // Use the GPIO number (29) for clarity in the SDK

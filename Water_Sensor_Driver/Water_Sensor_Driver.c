@@ -26,24 +26,31 @@ int read_water_raw() {
     return adc_read();
 }
 
+// Map raw water sensor to 0-100% with rounding
 int read_water_percent() {
+    static int last_raw = 0;        // last stable ADC reading
+    const int adc_hysteresis = 5;   // minimum raw ADC change to update
+
     int raw_value = read_water_raw();
-    int percentage = 0;
 
-    // Constrain the incoming value to our total observed range using the C helper
-    int constrained_raw = constrain_value(raw_value, CALIB_DRY_RAW, CALIB_WET_RAW);
-
-    // Check if the reading is in the bottom half of the range (0% to 50%)
-    if (constrained_raw <= CALIB_MID_RAW) {
-        // Map the range [Dry...Mid] to the percentage [0...50] using the C helper
-        percentage = map_value(constrained_raw, CALIB_DRY_RAW, CALIB_MID_RAW, 0, 50);
-    } 
-    // Check if the reading is in the top half of the range (50% to 100%)
-    else {
-        // Map the range [Mid...Wet] to the percentage [50...100] using the C helper
-        percentage = map_value(constrained_raw, CALIB_MID_RAW, CALIB_WET_RAW, 50, 100);
+    // Apply hysteresis on the raw ADC value
+    if (abs(raw_value - last_raw) < adc_hysteresis) {
+        raw_value = last_raw;
     }
 
-    // Ensure the final output is tightly constrained between 0 and 100
+    last_raw = raw_value;
+
+    // Constrain the incoming value to observed dry/wet calibration
+    int constrained_raw = constrain_value(raw_value, CALIB_DRY_RAW, CALIB_WET_RAW);
+
+    int percentage = 0;
+
+    // Map the constrained value to 0-100% using mid-point splitting
+    if (constrained_raw <= CALIB_MID_RAW) {
+        percentage = map_value_rounded(constrained_raw, CALIB_DRY_RAW, CALIB_MID_RAW, 0, 50);
+    } else {
+        percentage = map_value_rounded(constrained_raw, CALIB_MID_RAW, CALIB_WET_RAW, 50, 100);
+    }
+
     return constrain_value(percentage, 0, 100);
 }
