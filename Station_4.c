@@ -310,52 +310,11 @@
 //     return 0;
 // }
 
-//RFID Reader test - FAIL
+//RFID Reader test - PASS
 #include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
 #include "RFID_Reader_Driver.h"
-
-// int main() {
-//     stdio_init_all();
-//     sleep_ms(2000);
-//     printf("RFID Reader Driver Test Started.\n");
-
-//     rfid_init();
-//     printf("RFID Init Complete.\n");
-
-//     bool waiting_for_removal = false;
-
-//     while (true) {
-
-//     bool present = rfid_is_card_present();
-
-//     if (present) {
-
-//         // DEBUG LINE — this reveals exactly where the failure is
-//         printf("PICC_ReadCardSerial() returned: %d\n", rfid_debug_read_raw());
-
-//         if (!waiting_for_removal) {
-//             const char* uid = rfid_read_card_uid();
-//             if (uid) {
-//                 printf("Card detected! UID = %s\n", uid);
-//             } else {
-//                 printf("Card detected but UID read failed!\n");
-//             }
-//             waiting_for_removal = true;
-//         }
-//     }
-//     else {
-//         if (waiting_for_removal) {
-//             printf("Card removed.\n");
-//         }
-//         waiting_for_removal = false;
-//     }
-
-//     sleep_ms(200);
-// }
-//     return 0;
-// }
 
 int main() {
     stdio_init_all();
