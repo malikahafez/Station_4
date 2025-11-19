@@ -311,30 +311,168 @@
 // }
 
 //RFID Reader test - PASS
+// #include <stdio.h>
+// #include <stdbool.h>
+// #include "pico/stdlib.h"
+// #include "RFID_Reader_Driver.h"
+
+// int main() {
+//     stdio_init_all();
+//     sleep_ms(2000);
+//     rfid_init();
+
+//     printf("RFID Reader Test Started.\n");
+
+//     RFID_State rfid_state;
+//     rfid_driver_init(&rfid_state);
+
+//     while (true) {
+//         const char* uid = rfid_driver_poll(&rfid_state);
+//         if (uid) {
+//             printf("Card detected! UID = %s\n", uid);
+//             printf("UID returned by driver: %s\n", uid);
+//         }
+
+//         sleep_ms(200); // small polling delay
+//     }
+// }
+
+// FINAL TEST - ALL DRIVERS TOGETHER - PASS
 #include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
+
+// Include all your drivers
+#include "LCD_Driver.h"
+#include "Potentiometer_Driver.h"
+#include "Push_Button_Driver.h"
+#include "Water_Sensor_Driver.h"
+#include "Water_Pump_Driver.h"
+#include "LED_Driver.h"
 #include "RFID_Reader_Driver.h"
 
+// --- Thresholds / Constants ---
+#define MOVEMENT_THRESHOLD 1
+#define LOOP_DELAY_MS 100   // Main loop delay (adjust for polling speed)
+
+// --- Main ---
 int main() {
     stdio_init_all();
-    sleep_ms(2000);
+    sleep_ms(1000);
+    printf("Pico Multi-Driver Test Started.\n");
+
+    // --- Initialize Drivers ---
+    lcd_init();
+    LED_init();
+    potentiometer_init();
+    button_init();
+    water_sensor_init();
+    water_pump_init();
     rfid_init();
 
-    printf("RFID Reader Test Started.\n");
+    printf("All drivers initialized.\n");
 
+    // Initialize RFID state
     RFID_State rfid_state;
     rfid_driver_init(&rfid_state);
 
+    // Variables for pot tracking
+    int prev_pot = read_potentiometer_mapped(0, 100);
+
+    // Pump state
+    bool pump_on = false;
+
+    // LCD initial message
+    lcd_set_cursor(0, 0);
+    lcd_print("System Test");
+    lcd_set_cursor(0, 1);
+    lcd_print("Pot: 0% | W: 0%");
+
     while (true) {
+        // ------------------------------
+        // 1. Potentiometer
+        // ------------------------------
+        int pot_percent = read_potentiometer_mapped(0, 100);
+        int diff = pot_percent - prev_pot;
+        if (diff > MOVEMENT_THRESHOLD) {
+            printf("CW (value increasing)\n");
+            prev_pot = pot_percent;
+        } else if (diff < -MOVEMENT_THRESHOLD) {
+            printf("CCW (value decreasing)\n");
+            prev_pot = pot_percent;
+        }
+
+        // ------------------------------
+        // 2. Water Sensor
+        // ------------------------------
+        int water_percent = read_water_percent();
+        if (water_percent > 50) {
+            printf("-> Water Detected! %d%%\n", water_percent);
+        }
+
+        // ------------------------------
+        // 3. Push Button
+        // ------------------------------
+        if (was_button_just_pressed()) {
+            pump_on = !pump_on; // Toggle pump
+            if (pump_on) {
+                water_pump_set_direction(true); // Forward
+                printf("Button pressed. Pump ON.\n");
+            } else {
+                water_pump_off();
+                printf("Button pressed. Pump OFF.\n");
+            }
+            LED_toggle(); // Optional indicator
+        }
+
+        // ------------------------------
+        // 4. Water Pump Control
+        // ------------------------------
+        if (pump_on) {
+            water_pump_set_speed(pot_percent);
+        } else {
+            water_pump_set_speed(0);
+        }
+
+        // ------------------------------
+        // 5. LCD Update
+        // ------------------------------
+        lcd_set_cursor(0, 1);
+        lcd_print("Pot:");
+        lcd_print_number(pot_percent);
+        lcd_print("% W:");
+        lcd_print_number(water_percent);
+        lcd_print("%   "); // Clear extra chars
+
+        // ------------------------------
+        // 6. RFID Card Polling
+        // ------------------------------
         const char* uid = rfid_driver_poll(&rfid_state);
         if (uid) {
             printf("Card detected! UID = %s\n", uid);
-            printf("UID returned by driver: %s\n", uid);
+            lcd_set_cursor(0, 0);
+            lcd_print(uid);
         }
 
-        sleep_ms(200); // small polling delay
-    }
-}
+        // ------------------------------
+        // 7. LED Blinking Example
+        // ------------------------------
+        // Optional: blink LED slowly if pump is off
+        static uint32_t last_led_toggle = 0;
+        if (!pump_on) {
+            uint32_t now = to_ms_since_boot(get_absolute_time());
+            if (now - last_led_toggle > 500) { // toggle every 500 ms
+                LED_toggle();
+                last_led_toggle = now;
+            }
+        }
 
+        // ------------------------------
+        // 8. Loop Delay
+        // ------------------------------
+        sleep_ms(LOOP_DELAY_MS);
+    }
+
+    return 0;
+}
 
