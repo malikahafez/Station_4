@@ -640,7 +640,7 @@
 //     return 0;
 // }
 
-//***FINAL TEST FOR VIDEO***
+//***FINAL TEST FOR DEMO***
 #include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
