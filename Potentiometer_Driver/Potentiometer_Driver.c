@@ -23,25 +23,17 @@ int read_potentiometer_value() {
     return adc_read();
 }
 
-// Returns 0-100% with rounding, stable at edges
+// Returns 0-100% with rounding
 int read_potentiometer_mapped(int low_map, int high_map) {
-    static int last_raw = 0;           // last stable ADC reading
-    const int adc_hysteresis = 5;      // minimum raw ADC change to update
-
+    // Read raw ADC value (0–4095)
     int raw_value = read_potentiometer_value();
 
-    // Apply hysteresis on the raw ADC value
-    if (abs(raw_value - last_raw) < adc_hysteresis) {
-        raw_value = last_raw;
-    }
-
-    last_raw = raw_value;
-
-    // Map raw ADC value to 0-100% (or low_map-high_map)
+    // Map it directly to the desired range
     int mapped_value = map_value_rounded(raw_value, 0, 4095, low_map, high_map);
 
-    // Constrain final output just in case
+    // Constrain output just in case
     return constrain_value(mapped_value, low_map, high_map);
 }
+
 
 
