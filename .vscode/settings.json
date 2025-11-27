@@ -41,6 +41,7 @@
         "time.h": "c",
         "stdint.h": "c",
         "cstddef": "c",
-        "water_pump_driver.h": "c"
+        "water_pump_driver.h": "c",
+        "push_button_driver.h": "c"
     }
 }
