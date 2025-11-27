@@ -7,8 +7,7 @@
 
 #include "mfrc522.h"
 
-static MFRC522Ptr_t mfrc = NULL;
-static char uid_hex_string[32];
+
 
 void rfid_init(void) {
 

@@ -641,6 +641,141 @@
 // }
 
 //***FINAL TEST FOR DEMO***
+// #include <stdio.h>
+// #include <stdbool.h>
+// #include "pico/stdlib.h"
+// #include "LCD_Driver.h"
+// #include "Potentiometer_Driver.h"
+// #include "Push_Button_Driver.h"
+// #include "Water_Sensor_Driver.h"
+// #include "Water_Pump_Driver.h"
+// #include "LED_Driver.h"
+// #include "RFID_Reader_Driver.h"
+
+// int main() {
+//     stdio_init_all();
+//     sleep_ms(2000);
+// //     // ---------- Init Drivers ----------
+//     lcd_init();
+//     printf("LCD Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("LCD OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     potentiometer_init();
+//     printf("Potentiometer Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Potentiometer OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     button_init();
+//     printf("Button Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Button OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     water_sensor_init();
+//     printf("Water Sensor Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Water Sensor OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     water_pump_init();
+//     printf("Water Pump Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Water Pump OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     LED_init();
+//     printf("LED Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("LED OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     rfid_init();
+//     RFID_State rfid_state;
+//     rfid_driver_init(&rfid_state);
+//     printf("RFID Init OK\n");
+//     lcd_set_cursor(0, 0);
+//     lcd_print("RFID OK");
+//     sleep_ms(1000);
+//     send_command(0x01);
+//     sleep_ms(2);
+
+//     // ---------- LCD Initial Text ----------
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Test");
+//     lcd_set_cursor(0, 1);
+//     lcd_print("Pot: 0% | W: 0%");
+
+//     int b = 0;
+//     int counter = 0;
+//     while (true) {
+//         //RFID Reader
+//         const char* uid = rfid_driver_poll(&rfid_state);
+//         if (uid) {
+//             printf("Card detected! UID = %s\n", uid);
+//             printf("UID returned by driver: %s\n", uid);
+//             lcd_set_cursor(0,0);
+//             lcd_print(uid);
+//         }
+//         // Button
+//         if (was_button_just_pressed()) {
+//             printf("Button Pressed!\n");
+//             b++;
+//             sleep_ms(250);  
+//         }
+//         // LED Blink
+//         if (counter % 20 == 0) {
+//             LED_on();
+//             printf("LED ON\n");
+//         } else if (counter % 20 == 10) {
+//             LED_off();
+//             printf("LED OFF\n");
+//         }
+//         // Potentiometer
+//         int pot_percent = read_potentiometer_mapped(0, 100);
+//         printf("Potentiometer: %d%%\n", pot_percent);
+//         // Water Sensor
+//         int water_percent = read_water_percent();
+//         int water_raw = read_water_raw();
+//         printf("Water Sensor: %d%% (raw: %d)\n", water_percent, water_raw);
+//         //Water Pump
+//         water_pump_set_speed(pot_percent);
+//         if(b % 2 == 0){
+//             water_pump_set_direction(false);
+//         }
+//         else{
+//             water_pump_set_direction(true);
+//         }
+//         // LCD Output
+//         lcd_set_cursor(0, 1);
+//         lcd_print("Pot:");
+//         lcd_print_number(pot_percent);
+//         lcd_print("% W:");
+//         lcd_print_number(water_percent);
+//         lcd_print("% ");
+//         // lcd_set_cursor(0, 0);
+//         // lcd_print("Test b:");
+//         // lcd_print_number(b);
+//         // lcd_print("   "); 
+//         counter++;
+//         sleep_ms(50); // small polling delay
+//     }
+// }
+
 #include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
@@ -652,126 +787,138 @@
 #include "LED_Driver.h"
 #include "RFID_Reader_Driver.h"
 
+#define MOVEMENT_THRESHOLD 1
+
+RFID_State rfid_state;
+
+bool direction = false;//CW=0, CCW=1
+int pot_percent;//0 inititially
+int water_percent;
+
+int submit = 0;
+bool pumped_out_sucessfully = false;
+
+char* text;
+
+bool rfid_get_clue() {
+    const char* uid = rfid_driver_poll(&rfid_state);
+
+    if (uid) {
+        // Must have at least 2 bytes for 0x02EE
+        if (mfrc->uid.size >= 2) {
+
+            // Combine first two UID bytes into a 16-bit value
+            uint16_t uid_value =
+                ((uint16_t)mfrc->uid.uidByte[0] << 8) |
+                (uint16_t)mfrc->uid.uidByte[1];
+
+            // Compare to hex version of 750 (0x02EE)
+            if (uid_value == 0x02EE) {
+                return true;
+            }
+        }
+
+        return false;  // UID read but does not match 750
+    }
+
+    return false;      // no card scanned
+}
+
+void pump_in(){
+    water_pump_set_direction(true);
+    water_pump_set_speed(pot_percent); 
+
+
+}
+void pump_out(){
+    water_pump_set_direction(false);
+    water_pump_set_speed(100-pot_percent); 
+
+}
+
+void lcd_update_current(){
+    water_percent = read_water_percent();
+    lcd_set_cursor(0, 1);
+    lcd_print("Water:");
+    lcd_print_number(water_percent);
+    lcd_print("%   "); // Clear extra characters
+}
+
+void lcd_show_success(){
+
+}
+
 int main() {
     stdio_init_all();
     sleep_ms(2000);
 //     // ---------- Init Drivers ----------
     lcd_init();
-    printf("LCD Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("LCD OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     potentiometer_init();
-    printf("Potentiometer Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("Potentiometer OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     button_init();
-    printf("Button Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("Button OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     water_sensor_init();
-    printf("Water Sensor Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("Water Sensor OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     water_pump_init();
-    printf("Water Pump Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("Water Pump OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     LED_init();
-    printf("LED Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("LED OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
     rfid_init();
-    RFID_State rfid_state;
+    
     rfid_driver_init(&rfid_state);
-    printf("RFID Init OK\n");
-    lcd_set_cursor(0, 0);
-    lcd_print("RFID OK");
-    sleep_ms(1000);
-    send_command(0x01);
-    sleep_ms(2);
 
-    // ---------- LCD Initial Text ----------
-    lcd_set_cursor(0, 0);
-    lcd_print("Test");
-    lcd_set_cursor(0, 1);
-    lcd_print("Pot: 0% | W: 0%");
+    // Variables for pot tracking
+        
+    int prev_pot = read_potentiometer_mapped(0, 100);
+    // water_pump_set_speed(100);
 
-    int b = 0;
-    int counter = 0;
     while (true) {
-        //RFID Reader
-        const char* uid = rfid_driver_poll(&rfid_state);
-        if (uid) {
-            printf("Card detected! UID = %s\n", uid);
-            printf("UID returned by driver: %s\n", uid);
+
+        // check RFID Reader for correct clue
+        if(rfid_get_clue()){
+            //logic of the station
             lcd_set_cursor(0,0);
-            lcd_print(uid);
+            lcd_print("Target Lvl:750 ut");
+            if(pumped_out_sucessfully){
+                 pot_percent = read_potentiometer_mapped(0, 100);
+                int diff = pot_percent - prev_pot;
+                //initial direction should be CW - ask
+                if (diff > MOVEMENT_THRESHOLD) {
+                    printf("CW (value increasing)\n");
+                    pump_in();
+                    
+                    prev_pot = pot_percent;
+                } else if (diff < -MOVEMENT_THRESHOLD) {
+                    printf("CCW (value decreasing)\n");
+                    pump_out();
+                    
+                    prev_pot = pot_percent;
+                }
+            }
+           
+            lcd_update_current();
+            if (was_button_just_pressed()) {
+                printf("Button Pressed!\n");
+                submit = 1;
+                sleep_ms(250);
+                if(water_percent>75.3 || water_percent<74.7) {
+                    while(water_percent > 0){//check minimum water level value**
+                        pump_out();
+                    }
+                    pumped_out_sucessfully = true;
+                    submit = 0;
+                }
+                else{
+                    LED_on();
+                    //scan text
+                    //print on lcd
+
+                }
+
         }
-        // Button
-        if (was_button_just_pressed()) {
-            printf("Button Pressed!\n");
-            b++;
-            sleep_ms(250);  
+
         }
-        // LED Blink
-        if (counter % 20 == 0) {
-            LED_on();
-            printf("LED ON\n");
-        } else if (counter % 20 == 10) {
-            LED_off();
-            printf("LED OFF\n");
-        }
-        // Potentiometer
-        int pot_percent = read_potentiometer_mapped(0, 100);
-        printf("Potentiometer: %d%%\n", pot_percent);
-        // Water Sensor
-        int water_percent = read_water_percent();
-        int water_raw = read_water_raw();
-        printf("Water Sensor: %d%% (raw: %d)\n", water_percent, water_raw);
-        //Water Pump
-        water_pump_set_speed(pot_percent);
-        if(b % 2 == 0){
-            water_pump_set_direction(false);
-        }
-        else{
-            water_pump_set_direction(true);
-        }
-        // LCD Output
-        lcd_set_cursor(0, 1);
-        lcd_print("Pot:");
-        lcd_print_number(pot_percent);
-        lcd_print("% W:");
-        lcd_print_number(water_percent);
-        lcd_print("% ");
-        // lcd_set_cursor(0, 0);
-        // lcd_print("Test b:");
-        // lcd_print_number(b);
-        // lcd_print("   "); 
-        counter++;
         sleep_ms(50); // small polling delay
     }
 }

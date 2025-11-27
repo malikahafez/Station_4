@@ -7,6 +7,9 @@
 #include "pico/stdlib.h"
 #include "mfrc522.h"    // 3rd-party MFRC522 library
 
+static MFRC522Ptr_t mfrc = NULL;
+static char uid_hex_string[32];
+
 // State for the driver
 typedef struct {
     bool card_present;    // true if card currently on reader
