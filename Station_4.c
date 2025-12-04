@@ -789,6 +789,8 @@
 
 #include "hardware/uart.h"
 
+#define RFID_CLUE_BLOCK 4     // Block 4 is safe (first data block)
+
 // UART Configuration
 #define UART_ID uart0
 #define BAUD_RATE 115200
@@ -809,7 +811,7 @@ int water_percent;
 int submit = 0;
 bool pumped_out_sucessfully = false;
 
-char* text;
+char text_buffer[BUFFER_SIZE];
 
 void uart_init_custom() {
     // Initialize UART
@@ -854,28 +856,26 @@ bool receive_ocr_response(char *buffer, size_t buffer_size) {
     return false;
 }
 
+// ----------------------------
+// RFID Functions - integer 750
+// ----------------------------
 bool rfid_get_clue() {
-    const char* uid = rfid_driver_poll(&rfid_state);
-
-    if (uid) {
-        // Must have at least 2 bytes for 0x02EE
-        if (mfrc->uid.size >= 2) {
-
-            // Combine first two UID bytes into a 16-bit value
-            uint16_t uid_value =
-                ((uint16_t)mfrc->uid.uidByte[0] << 8) |
-                (uint16_t)mfrc->uid.uidByte[1];
-
-            // Compare to hex version of 750 (0x02EE)
-            if (uid_value == 0x02EE) {
-                return true;
-            }
-        }
-
-        return false;  // UID read but does not match 750
+    uint16_t clue_value = 0;
+    if (!rfid_read_uint16(RFID_CLUE_BLOCK, &clue_value, &rfid_state)) {
+        return false;
     }
 
-    return false;      // no card scanned
+    return (clue_value == 750);
+}
+
+void rfid_write_test_clue() {
+    printf("Writing RFID clue 750 to block %d...\n", RFID_CLUE_BLOCK);
+
+    if (rfid_write_uint16(RFID_CLUE_BLOCK, 750, &rfid_state)) {
+        printf("RFID write OK\n");
+    } else {
+        printf("RFID write FAILED\n");
+    }
 }
 
 void pump_in(){
@@ -898,8 +898,12 @@ void lcd_update_current(){
     lcd_print("%   "); // Clear extra characters
 }
 
-void lcd_show_success(){
-
+void lcd_show_success() {
+    lcd_clear();
+    lcd_set_cursor(0, 0);
+    lcd_print("Correct Level!");
+    lcd_set_cursor(0, 1);
+    lcd_print("Proceed...");
 }
 
 int main() {
@@ -925,58 +929,82 @@ int main() {
     
     rfid_driver_init(&rfid_state);
 
+    // Optional: write test clue 750 to RFID block (uncomment for first run)
+    // rfid_write_test_clue();
+    // sleep_ms(2000);
+
+
     // Variables for pot tracking
-        
     int prev_pot = read_potentiometer_mapped(0, 100);
-    // water_pump_set_speed(100);
 
-    while (true) {
+   while (true) {
+        // ----------------------------
+        // Check RFID for the numeric clue
+        // ----------------------------
+        if (rfid_get_clue()) {
+            // Logic of the station
+            lcd_set_cursor(0, 0);
+            lcd_print("Target Lvl: 750");
 
-        // check RFID Reader for correct clue
-        if(rfid_get_clue()){
-            //logic of the station
-            lcd_set_cursor(0,0);
-            lcd_print("Target Lvl:750 ut");
-            if(pumped_out_sucessfully){
-                 pot_percent = read_potentiometer_mapped(0, 100);
+            if (pumped_out_sucessfully) {
+                pot_percent = read_potentiometer_mapped(0, 100);
                 int diff = pot_percent - prev_pot;
-                //initial direction should be CW - ask
+
+                // Determine rotation direction
                 if (diff > MOVEMENT_THRESHOLD) {
                     printf("CW (value increasing)\n");
                     pump_in();
-                    
                     prev_pot = pot_percent;
                 } else if (diff < -MOVEMENT_THRESHOLD) {
                     printf("CCW (value decreasing)\n");
                     pump_out();
-                    
                     prev_pot = pot_percent;
                 }
             }
-           
+
             lcd_update_current();
+
             if (was_button_just_pressed()) {
                 printf("Button Pressed!\n");
                 submit = 1;
                 sleep_ms(250);
-                if(water_percent>75.3 || water_percent<74.7) {
-                    while(water_percent > 0){//check minimum water level value**
+
+                if (water_percent > 75.3 || water_percent < 74.7) {
+                    // Empty tank to minimum level
+                    while (read_water_percent() > 0) {
                         pump_out();
                     }
                     pumped_out_sucessfully = true;
                     submit = 0;
-                }
-                else{
+                } else {
+                    // Turn on UV LED and scan text
                     LED_on();
-                    //scan text
-                    //print on lcd
+                    sleep_ms(500);
+                    send_ocr_request();
 
+                    if (receive_ocr_response(text_buffer, BUFFER_SIZE)) {
+                        sleep_ms(500);
+                        UV_LED_off();
+
+                        lcd_clear();
+                        lcd_set_cursor(0, 0);
+                        lcd_print("OCR:");
+                        lcd_set_cursor(0, 1);
+                        lcd_print(text_buffer);
+
+                        printf("OCR Response: %s\n", text_buffer);
+                    } else {
+                        lcd_clear();
+                        lcd_print("OCR Timeout!");
+                        UV_LED_off();
+                    }
+
+                    LED_off();
                 }
-
+            }
         }
 
-        }
-        sleep_ms(50); // small polling delay
+        sleep_ms(50); // Small polling delay
     }
 }
 

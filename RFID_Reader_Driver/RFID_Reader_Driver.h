@@ -14,6 +14,7 @@ static char uid_hex_string[32];
 typedef struct {
     bool card_present;    // true if card currently on reader
     char uid_buffer[32];  // formatted UID string
+    Uid uid;
 } RFID_State;
 
 // ----------------------
@@ -41,5 +42,12 @@ const char* rfid_wait_for_card_once();
 
 void rfid_driver_init(RFID_State* state);
 const char* rfid_driver_poll(RFID_State* state);
+
+bool rfid_read_uint16(uint8_t block, uint16_t *value, RFID_State *state);
+bool rfid_write_uint16(uint8_t block, uint16_t value, RFID_State *state);
+
+bool rfid_read_block(uint8_t block, uint8_t *out16, RFID_State *state);
+bool rfid_write_block(uint8_t block, const uint8_t *data16, RFID_State *state);
+
 
 #endif // RFID_READER_DRIVER_H

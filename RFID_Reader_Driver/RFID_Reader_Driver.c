@@ -170,3 +170,92 @@ const char* rfid_driver_poll(RFID_State* state) {
     return NULL; // no new card
 }
 
+// Write a 16-bit integer to a block
+bool rfid_write_uint16(uint8_t block, uint16_t value, RFID_State *state) {
+    uint8_t data[16] = {0};
+    data[0] = (value >> 8) & 0xFF;  // high byte
+    data[1] = value & 0xFF;         // low byte
+
+    // Authenticate and write
+    MIFARE_Key key = { .keybyte = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF} };
+    StatusCode res = PCD_Authenticate(mfrc, PICC_CMD_MF_AUTH_KEY_A, block, &key, &state->uid);
+    if (res != STATUS_OK) return false;
+
+    res = MIFARE_Write(mfrc, block, data, 16);
+    PCD_StopCrypto1(mfrc);
+    return (res == STATUS_OK);
+}
+
+// Read a 16-bit integer from a block
+bool rfid_read_uint16(uint8_t block, uint16_t *value, RFID_State *state) {
+    uint8_t data[16];
+    if (!rfid_read_block(block, data, state)) return false;
+
+    *value = ((uint16_t)data[0] << 8) | data[1];
+    return true;
+}
+
+//read a ASCII char array
+bool rfid_read_block(uint8_t block, uint8_t *out16, RFID_State *state)
+{
+    MIFARE_Key key = { .keybyte = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF } };
+
+    uint8_t buffer[18];
+    uint8_t bufferSize = 18;
+
+    // Authenticate with key A
+    StatusCode result = PCD_Authenticate(
+        mfrc,
+        PICC_CMD_MF_AUTH_KEY_A,
+        block,
+        &key,
+        &state->uid
+    );
+
+    if (result != STATUS_OK) {
+        printf("Auth failed\n");
+        return false;
+    }
+
+    // Read
+    result = MIFARE_Read(mfrc, block, buffer, &bufferSize);
+    if (result != STATUS_OK) {
+        printf("Read failed\n");
+        return false;
+    }
+
+    memcpy(out16, buffer, 16);
+
+    PCD_StopCrypto1(mfrc);
+    return true;
+}
+// write a ASCII char array
+bool rfid_write_block(uint8_t block, const uint8_t *data16, RFID_State *state)
+{
+    MIFARE_Key key = { .keybyte = { 0xFF,0xFF,0xFF,0xFF,0xFF,0xFF } };
+
+    // authenticate
+    StatusCode result = PCD_Authenticate(
+        mfrc,
+        PICC_CMD_MF_AUTH_KEY_A,
+        block,
+        &key,
+        &state->uid
+    );
+
+    if (result != STATUS_OK) {
+        printf("Auth failed\n");
+        return false;
+    }
+
+    // write 16 bytes
+    result = MIFARE_Write(mfrc, block, (uint8_t*)data16, 16);
+
+    if (result != STATUS_OK) {
+        printf("Write failed\n");
+        return false;
+    }
+
+    PCD_StopCrypto1(mfrc);
+    return true;
+}
