@@ -855,7 +855,14 @@ bool receive_ocr_response(char *buffer, size_t buffer_size) {
     printf("Timeout waiting for OCR response\n");
     return false;
 }
-
+void lcd_show_target(int target_level){
+    lcd_clear();
+    lcd_set_cursor(0,0);
+    char buf[16];
+    snprintf(buf, sizeof(buf), "TGT LVL:%d unit", target_level);
+    lcd_print(buf);
+    // lcd_print("TGT LVL:750 unit");
+}
 // ----------------------------
 // RFID Functions - integer 750
 // ----------------------------
@@ -864,7 +871,9 @@ bool rfid_get_clue() {
     if (!rfid_read_uint16(RFID_CLUE_BLOCK, &clue_value, &rfid_state)) {
         return false;
     }
-
+    if(clue_value == 750){
+        lcd_show_target(750);
+    }
     return (clue_value == 750);
 }
 
@@ -906,11 +915,32 @@ void lcd_show_success() {
     lcd_print("Proceed...");
 }
 
+void perform_ocr(){
+    send_ocr_request();
+
+    if (receive_ocr_response(text_buffer, BUFFER_SIZE)) {
+        sleep_ms(500);
+        LED_off();
+
+        lcd_clear();
+        lcd_set_cursor(0, 0);
+        lcd_print("Clue:");
+        lcd_set_cursor(0, 1);
+        lcd_print(text_buffer);
+
+        printf("%s\n", text_buffer);
+        } else {
+            lcd_clear();
+            lcd_print("OCR Timeout!");
+            LED_off();
+        }
+}
+
 int main() {
     stdio_init_all();
     uart_init_custom();
     
-    printf("Milestone1 - OCR Test\n");
+    printf("Station Flow Test\n");
     sleep_ms(2000);
 //     // ---------- Init Drivers ----------
     lcd_init();
@@ -942,9 +972,6 @@ int main() {
         // Check RFID for the numeric clue
         // ----------------------------
         if (rfid_get_clue()) {
-            // Logic of the station
-            lcd_set_cursor(0, 0);
-            lcd_print("Target Lvl: 750");
 
             if (pumped_out_sucessfully) {
                 pot_percent = read_potentiometer_mapped(0, 100);
@@ -980,26 +1007,7 @@ int main() {
                     // Turn on UV LED and scan text
                     LED_on();
                     sleep_ms(500);
-                    send_ocr_request();
-
-                    if (receive_ocr_response(text_buffer, BUFFER_SIZE)) {
-                        sleep_ms(500);
-                        UV_LED_off();
-
-                        lcd_clear();
-                        lcd_set_cursor(0, 0);
-                        lcd_print("OCR:");
-                        lcd_set_cursor(0, 1);
-                        lcd_print(text_buffer);
-
-                        printf("OCR Response: %s\n", text_buffer);
-                    } else {
-                        lcd_clear();
-                        lcd_print("OCR Timeout!");
-                        UV_LED_off();
-                    }
-
-                    LED_off();
+                    perform_ocr();
                 }
             }
         }
