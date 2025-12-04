@@ -798,7 +798,7 @@
 #define UART_RX_PIN 1
 
 // Buffer for receiving data
-#define BUFFER_SIZE 256
+#define BUFF_SIZE 256
 
 #define MOVEMENT_THRESHOLD 1
 
@@ -811,7 +811,7 @@ int water_percent;
 int submit = 0;
 bool pumped_out_sucessfully = false;
 
-char text_buffer[BUFFER_SIZE];
+char text_buffer[BUFF_SIZE];
 
 void uart_init_custom() {
     // Initialize UART
@@ -856,7 +856,7 @@ bool receive_ocr_response(char *buffer, size_t buffer_size) {
     return false;
 }
 void lcd_show_target(int target_level){
-    lcd_clear();
+    send_command(LCD_CLEARDISPLAY);
     lcd_set_cursor(0,0);
     char buf[16];
     snprintf(buf, sizeof(buf), "TGT LVL:%d unit", target_level);
@@ -908,7 +908,7 @@ void lcd_update_current(){
 }
 
 void lcd_show_success() {
-    lcd_clear();
+    send_command(LCD_CLEARDISPLAY);
     lcd_set_cursor(0, 0);
     lcd_print("Correct Level!");
     lcd_set_cursor(0, 1);
@@ -918,11 +918,11 @@ void lcd_show_success() {
 void perform_ocr(){
     send_ocr_request();
 
-    if (receive_ocr_response(text_buffer, BUFFER_SIZE)) {
+    if (receive_ocr_response(text_buffer, BUFF_SIZE)) {
         sleep_ms(500);
         LED_off();
 
-        lcd_clear();
+        send_command(LCD_CLEARDISPLAY);
         lcd_set_cursor(0, 0);
         lcd_print("Clue:");
         lcd_set_cursor(0, 1);
@@ -930,7 +930,7 @@ void perform_ocr(){
 
         printf("%s\n", text_buffer);
         } else {
-            lcd_clear();
+            send_command(LCD_CLEARDISPLAY);
             lcd_print("OCR Timeout!");
             LED_off();
         }
