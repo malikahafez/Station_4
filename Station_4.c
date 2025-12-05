@@ -997,17 +997,41 @@ int main() {
                 sleep_ms(250);
 
                 if (water_percent > 75.3 || water_percent < 74.7) {
+                    // Wrong level - show failure message
+                    send_command(LCD_CLEARDISPLAY);
+                    lcd_set_cursor(0, 0);
+                    lcd_print("Wrong Level!");
+                    lcd_set_cursor(0, 1);
+                    lcd_print("Resetting...");
+                    printf("Water level incorrect: %d%%. Resetting tank.\n", water_percent);
+                    sleep_ms(1000);
+                    
                     // Empty tank to minimum level
                     while (read_water_percent() > 0) {
                         pump_out();
                     }
                     pumped_out_sucessfully = true;
                     submit = 0;
+                    
+                    // Show target again after reset
+                    lcd_show_target(750);
                 } else {
-                    // Turn on UV LED and scan text
+                    // Correct level! Show success message
+                    printf("Correct water level achieved: %d%%\n", water_percent);
+                    lcd_show_success();
+                    sleep_ms(1500);
+                    
+                    // Turn on UV LED to reveal hidden text
+                    printf("Activating UV LED...\n");
                     LED_on();
-                    sleep_ms(500);
+                    sleep_ms(1000);  // Give time for UV to illuminate the hidden text
+                    
+                    // Scan the revealed text with camera OCR
+                    printf("Starting OCR scan...\n");
                     perform_ocr();
+                    
+                    // Keep the clue displayed
+                    submit = 0;
                 }
             }
         }
