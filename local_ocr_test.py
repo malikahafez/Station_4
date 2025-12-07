@@ -7,12 +7,31 @@ except ImportError:
 
 import pytesseract
 from fuzzywuzzy import fuzz
+import serial
 import time
 
 # --- Configuration ---
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' 
 REFERENCE_TEXT = "MIX 9:5:2"
 CAMERA_INDEX = 0 
+# --- Configuration ---
+# IMPORTANT: Replace 'COM_PORT_NAME' with the actual port name
+# Windows: 'COM3', 'COM4', etc.
+# Linux: '/dev/ttyACM0' (common for Pico/RP2040)
+# macOS: '/dev/tty.usbmodemXXXX'
+SERIAL_PORT = 'COM6' # Adjust this for your OS
+BAUD_RATE = 115200 # Must match stdio_init_all's default baud (often ignored for USB CDC but good practice)
+# ---------------------
+
+# try:
+#     # 1. Initialize Serial Port over USB
+#     ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+#     time.sleep(2) # Give time for the connection to establish
+#     print(f"Connected to {SERIAL_PORT}")
+# except serial.SerialException as e:
+#     print(f"Error opening serial port: {e}")
+#     # You may need to install the driver or check the port name
+#     exit()
 
 # --- Detection Mode Configuration ---
 # You can switch between "UV_INK" and "HIGHLIGHTER" to test.
@@ -78,59 +97,139 @@ def validate_text(extracted_text, reference_text):
         return False, clean_text, similarity
 
 # --- Main Test Loop ---
+# cap = cv2.VideoCapture(CAMERA_INDEX)
+# if not cap.isOpened():
+#     print(f"Error: Cannot open camera at index {CAMERA_INDEX}.")
+#     exit()
+
+# print(f"Starting OCR test in **{DETECTION_MODE}** mode. Press 'q' to quit.")
+# last_check_time = time.time()
+
+# display_text = "Waiting for OCR..."
+# display_color = (255, 255, 255) 
+
+# while True:
+#     ret, frame = cap.read()
+#     if not ret:
+#         print("Error: Failed to capture frame.")
+#         break
+
+#     if time.time() - last_check_time > 1.0:
+        
+#         # 1. Process the frame for OCR using the selected mode
+#         processed_image = process_frame(frame, DETECTION_MODE)
+        
+#         # 2. Run Tesseract OCR on the processed image
+#         config = "--psm 6" # Assumes a single block of text
+#         extracted_text = pytesseract.image_to_string(processed_image, config=config)
+        
+#         # 3. Validate the text
+#         is_match, clean_text, similarity = validate_text(extracted_text, REFERENCE_TEXT)
+        
+#         # 4. Update the display text
+#         display_text = f"MODE: {DETECTION_MODE} | OCR: '{clean_text}' (Sim: {similarity}%)"
+#         if is_match:
+#             display_color = (0, 255, 0) # Green
+#         else:
+#             display_color = (0, 0, 255) # Red
+            
+#         last_check_time = time.time()
+
+#     # Draw the text on the live video frame
+#     cv2.putText(frame, display_text, 
+#                 (10, 30), # Position (top-left)
+#                 cv2.FONT_HERSHEY_SIMPLEX, 
+#                 0.7, display_color, 2)
+
+#     # Show the live feed and the processed image for debugging
+#     cv2.imshow("Live Feed", frame)
+#     # The processed image shows what Tesseract actually 'sees'
+#     cv2.imshow(f"Processed Image ({DETECTION_MODE})", processed_image) 
+
+#     if cv2.waitKey(1) & 0xFF == ord('q'):
+#         break
+
+# # Clean up
+# cap.release()
+# cv2.destroyAllWindows()
+# print("Test finished.")
+
+# --- New Serial Communication Setup ---
+try:
+    # Initialize the serial connection over USB-C
+    ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
+    time.sleep(2) # Wait for the connection to establish
+    print(f"Connected to {SERIAL_PORT}. Waiting for 'START_OCR' command.")
+except serial.SerialException as e:
+    print(f"Error opening serial port {SERIAL_PORT}: {e}")
+    print("Ensure the Arduino Nano RP2040 is plugged in and the port name is correct.")
+    raise SystemExit(1)
+
+# --- Camera Setup (Still needed for the OCR function) ---
 cap = cv2.VideoCapture(CAMERA_INDEX)
 if not cap.isOpened():
     print(f"Error: Cannot open camera at index {CAMERA_INDEX}.")
-    exit()
+    raise SystemExit(1)
 
-print(f"Starting OCR test in **{DETECTION_MODE}** mode. Press 'q' to quit.")
-last_check_time = time.time()
+print("Starting OCR test. Press Ctrl+C to quit.")
 
-display_text = "Waiting for OCR..."
-display_color = (255, 255, 255) 
-
+# --- Serial Monitor Loop ---
 while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("Error: Failed to capture frame.")
-        break
-
-    if time.time() - last_check_time > 1.0:
-        
-        # 1. Process the frame for OCR using the selected mode
-        processed_image = process_frame(frame, DETECTION_MODE)
-        
-        # 2. Run Tesseract OCR on the processed image
-        config = "--psm 6" # Assumes a single block of text
-        extracted_text = pytesseract.image_to_string(processed_image, config=config)
-        
-        # 3. Validate the text
-        is_match, clean_text, similarity = validate_text(extracted_text, REFERENCE_TEXT)
-        
-        # 4. Update the display text
-        display_text = f"MODE: {DETECTION_MODE} | OCR: '{clean_text}' (Sim: {similarity}%)"
-        if is_match:
-            display_color = (0, 255, 0) # Green
-        else:
-            display_color = (0, 0, 255) # Red
+    try:
+        # Read a line from the serial port (blocks for up to 'timeout' seconds)
+        if ser.in_waiting > 0:
+            line = ser.readline().decode('utf-8').strip()
             
-        last_check_time = time.time()
+            if line == "START_OCR":
+                print("\n[RP2040] Command received: START_OCR. Running OCR...")
+                
+                # 1. Capture and Process the frame
+                ret, frame = cap.read()
+                if not ret:
+                    print("Error: Failed to capture frame.")
+                    # Send a generic error response back
+                    response = "OCR_FAIL\n"
+                    ser.write(response.encode('utf-8'))
+                    continue
 
-    # Draw the text on the live video frame
-    cv2.putText(frame, display_text, 
-                (10, 30), # Position (top-left)
-                cv2.FONT_HERSHEY_SIMPLEX, 
-                0.7, display_color, 2)
+                # Use the appropriate processing function (UV_INK or HIGHLIGHTER)
+                # Ensure DETECTION_MODE is still set in your configuration section!
+                processed_image = process_frame(frame, DETECTION_MODE) 
+                
+                # 2. Run Tesseract OCR
+                config = "--psm 6"
+                extracted_text = pytesseract.image_to_string(processed_image, config=config).strip()
+                
+                # 3. Validate the text (Optional, but good for confidence check)
+                is_match, clean_text, similarity = validate_text(extracted_text, REFERENCE_TEXT)
 
-    # Show the live feed and the processed image for debugging
-    cv2.imshow("Live Feed", frame)
-    # The processed image shows what Tesseract actually 'sees'
-    cv2.imshow(f"Processed Image ({DETECTION_MODE})", processed_image) 
+                # 4. Prepare and Send Response
+                # Send the clean text followed by a newline (\n)
+                final_response = f"{clean_text}\n" 
+                
+                ser.write(final_response.encode('utf-8'))
+                print(f"[RP2040] Response sent: '{clean_text}' (Sim: {similarity}%)")
 
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+                # Optional: Show the processed image briefly for debugging
+                cv2.imshow("Processed Image for OCR", processed_image)
+                cv2.waitKey(1000) # Show for 1 second
+                cv2.destroyAllWindows()
+            
+            # Print any other serial messages from the RP2040
+            elif line:
+                print(f"[RP2040]: {line}")
+
+    except KeyboardInterrupt:
         break
+    except serial.SerialException:
+        print("\n[ERROR] Serial connection lost.")
+        break
+    
+    # Small delay to prevent high CPU usage
+    time.sleep(0.05)
 
-# Clean up
+# --- Clean up ---
+print("Test finished. Cleaning up.")
 cap.release()
 cv2.destroyAllWindows()
-print("Test finished.")
+ser.close()

@@ -1162,10 +1162,10 @@
 #define RFID_CLUE_BLOCK 4     // Block 4 is safe (first data block)
 
 // UART Configuration
-#define UART_ID uart0
-#define BAUD_RATE 115200
-#define UART_TX_PIN 0
-#define UART_RX_PIN 1
+// #define UART_ID uart0
+// #define BAUD_RATE 115200
+// #define UART_TX_PIN 0
+// #define UART_RX_PIN 1
 
 // Buffer for receiving data
 #define BUFF_SIZE 256
@@ -1183,43 +1183,75 @@ bool pumped_out_sucessfully = false;
 
 char text_buffer[BUFF_SIZE];
 
-void uart_init_custom() {
-    // Initialize UART
-    uart_init(UART_ID, BAUD_RATE);
+// void uart_init_custom() {
+//     // Initialize UART
+//     uart_init(UART_ID, BAUD_RATE);
     
-    // Set the TX and RX pins
-    gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
-    gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+//     // Set the TX and RX pins
+//     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+//     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
     
-    // Enable UART FIFO
-    uart_set_fifo_enabled(UART_ID, true);
-}
+//     // Enable UART FIFO
+//     uart_set_fifo_enabled(UART_ID, true);
+// }
 
 void send_ocr_request() {
     const char *command = "START_OCR\n";
-    uart_puts(UART_ID, command);
+    // uart_puts(UART_ID, command);
+    printf("%s", command); // Use standard printf for USB Serial
     printf("Sent: START_OCR\n");
 }
 
+// bool receive_ocr_response(char *buffer, size_t buffer_size) {
+//     uint32_t timeout = 10000; // 10 seconds timeout in ms
+//     uint32_t start_time = to_ms_since_boot(get_absolute_time());
+//     int index = 0;
+    
+//     while ((to_ms_since_boot(get_absolute_time()) - start_time) < timeout) {
+//         if (uart_is_readable(UART_ID)) {
+//             char c = uart_getc(UART_ID);
+            
+//             if (c == '\n') {
+//                 buffer[index] = '\0';
+//                 return true;
+//             }
+            
+//             if (index < buffer_size - 1) {
+//                 buffer[index++] = c;
+//             }
+//         }
+//         sleep_ms(10);
+//     }
+    
+//     printf("Timeout waiting for OCR response\n");
+//     return false;
+// }
+// Using stdio for USB Serial
 bool receive_ocr_response(char *buffer, size_t buffer_size) {
-    uint32_t timeout = 10000; // 10 seconds timeout in ms
+    uint32_t timeout_ms = 10000; // 10 seconds timeout
     uint32_t start_time = to_ms_since_boot(get_absolute_time());
     int index = 0;
     
-    while ((to_ms_since_boot(get_absolute_time()) - start_time) < timeout) {
-        if (uart_is_readable(UART_ID)) {
-            char c = uart_getc(UART_ID);
-            
-            if (c == '\n') {
+    // Wait for the first character (timeout)
+    while (!stdio_usb_connected() && (to_ms_since_boot(get_absolute_time()) - start_time) < 1000) {
+        sleep_ms(100);
+    }
+    
+    // Use stdio functions. We read character by character until '\n' or timeout.
+    while ((to_ms_since_boot(get_absolute_time()) - start_time) < timeout_ms) {
+        // getchar_timeout_us() is a non-blocking read from stdio (USB Serial)
+        int c = getchar_timeout_us(0); 
+
+        if (c != PICO_ERROR_TIMEOUT) {
+            if (c == '\n' || c == '\r') {
                 buffer[index] = '\0';
                 return true;
             }
-            
             if (index < buffer_size - 1) {
-                buffer[index++] = c;
+                buffer[index++] = (char)c;
             }
         }
-        sleep_ms(10);
+        sleep_ms(1);
     }
     
     printf("Timeout waiting for OCR response\n");
@@ -1349,7 +1381,7 @@ void perform_ocr(){
 }
 int main(){
     stdio_init_all();
-    uart_init_custom();
+    // uart_init_custom();
     
     printf("Station Flow Test\n");
     sleep_ms(2000);
@@ -1437,7 +1469,7 @@ int main(){
                         // Turn on UV LED to reveal hidden text
                         printf("[PUZZLE] Activating UV LED...\n");  
                         LED_on();     
-                        sleep_ms(1000);  // Give time for UV to illuminate the hidden text
+                        sleep_ms(8000);  // Give time for UV to illuminate the hidden text
                         
                         // Scan the revealed text with camera OCR
                         printf("[PUZZLE] Starting OCR scan...\n");
