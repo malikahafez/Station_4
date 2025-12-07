@@ -1469,11 +1469,12 @@ int main(){
                         // Turn on UV LED to reveal hidden text
                         printf("[PUZZLE] Activating UV LED...\n");  
                         LED_on();     
-                        sleep_ms(8000);  // Give time for UV to illuminate the hidden text
+                        sleep_ms(10000);  // Give time for UV to illuminate the hidden text
                         
                         // Scan the revealed text with camera OCR
                         printf("[PUZZLE] Starting OCR scan...\n");
                         perform_ocr();
+                        water_pump_off();
                         
                         // Keep the clue displayed
                         submit = 0;                               
