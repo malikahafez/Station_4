@@ -17,6 +17,8 @@ typedef struct {
     Uid uid;
 } RFID_State;
 
+extern RFID_State rfid_state;
+
 // ----------------------
 //  SPI & PIN Definitions
 // ----------------------

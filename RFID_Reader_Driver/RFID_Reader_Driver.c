@@ -8,6 +8,9 @@
 #include "mfrc522.h"
 
 
+// rfid_reader_driver.c
+RFID_State rfid_state;
+
 
 void rfid_init(void) {
 
@@ -67,6 +70,7 @@ const char* rfid_read_card_uid() {
         printf("PICC_ReadCardSerial() failed inside read_card_uid\n");
         return NULL;
     }
+    memcpy(&rfid_state.uid, &mfrc->uid, sizeof(Uid));
 
     memset(uid_hex_string, 0, sizeof(uid_hex_string));
     char *p = uid_hex_string;
@@ -103,6 +107,7 @@ const char* rfid_wait_for_card_once() {
                 sleep_ms(200); // retry delay
                 continue;
             }
+            memcpy(&rfid_state.uid, &mfrc->uid, sizeof(Uid));
 
             // Format UID
             memset(uid_buffer, 0, sizeof(uid_buffer));
@@ -149,6 +154,8 @@ const char* rfid_driver_poll(RFID_State* state) {
         if (!PICC_ReadCardSerial(mfrc)) {
             return NULL; // failed to read UID, try next loop
         }
+        memcpy(&state->uid, &mfrc->uid, sizeof(Uid));
+
 
         // Format UID into string
         char* p = state->uid_buffer;
@@ -172,26 +179,62 @@ const char* rfid_driver_poll(RFID_State* state) {
 
 // Write a 16-bit integer to a block
 bool rfid_write_uint16(uint8_t block, uint16_t value, RFID_State *state) {
-    uint8_t data[16] = {0};
-    data[0] = (value >> 8) & 0xFF;  // high byte
-    data[1] = value & 0xFF;         // low byte
+    printf("[RFID] WRITE start (block=%u, value=%u)\n", block, value);
 
-    // Authenticate and write
+    uint8_t data[16] = {0};
+    data[0] = (value >> 8) & 0xFF;   // high byte
+    data[1] = value & 0xFF;          // low byte
+
+    printf("[RFID] Encoded bytes: 0x%02X 0x%02X\n", data[0], data[1]);
+
+    // Debug UID
+    printf("[RFID] UID: ");
+    for (int i = 0; i < state->uid.size; i++) printf("%02X ", state->uid.uidByte[i]);
+    printf("\n");
+
+    // Authenticate
     MIFARE_Key key = { .keybyte = {0xFF,0xFF,0xFF,0xFF,0xFF,0xFF} };
     StatusCode res = PCD_Authenticate(mfrc, PICC_CMD_MF_AUTH_KEY_A, block, &key, &state->uid);
-    if (res != STATUS_OK) return false;
 
+    if (res != STATUS_OK) {
+        printf("[RFID] ERROR: Authentication failed (%s)\n", GetStatusCodeName(res));
+        return false;
+    }
+    printf("[RFID] Authentication OK\n");
+
+    // Write
     res = MIFARE_Write(mfrc, block, data, 16);
+    printf("[RFID] Write result: %s\n", GetStatusCodeName(res));
+
     PCD_StopCrypto1(mfrc);
+
     return (res == STATUS_OK);
 }
 
+
 // Read a 16-bit integer from a block
 bool rfid_read_uint16(uint8_t block, uint16_t *value, RFID_State *state) {
+    printf("[RFID] READ start (block=%u)\n", block);
+
+    // --- Added a short delay for hardware stability after a write ---
+    sleep_ms(10); 
+
     uint8_t data[16];
-    if (!rfid_read_block(block, data, state)) return false;
+    if (!rfid_read_block(block, data, state)) {
+        printf("[RFID] ERROR: Failed reading block %u\n", block);
+        // The failure happens here due to Auth failed in rfid_read_block
+        return false;
+    }
+
+    printf("[RFID] Raw block data: ");
+    for (int i = 0; i < 16; i++) printf("%02X ", data[i]);
+    printf("\n");
 
     *value = ((uint16_t)data[0] << 8) | data[1];
+
+    printf("[RFID] Decoded value: %u (0x%02X%02X)\n",
+           *value, data[0], data[1]);
+
     return true;
 }
 

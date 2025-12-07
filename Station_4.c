@@ -776,6 +776,376 @@
 //     }
 // }
 
+// #include <stdio.h>
+// #include <stdbool.h>
+// #include "pico/stdlib.h"
+// #include "LCD_Driver.h"
+// #include "Potentiometer_Driver.h"
+// #include "Push_Button_Driver.h"
+// #include "Water_Sensor_Driver.h"
+// #include "Water_Pump_Driver.h"
+// #include "LED_Driver.h"
+// #include "RFID_Reader_Driver.h"
+
+// #include "hardware/uart.h"
+
+// #define RFID_CLUE_BLOCK 4     // Block 4 is safe (first data block)
+// #define TARGET_CLUE_VALUE 750 // The expected value from the RFID tag
+
+// // UART Configuration
+// #define UART_ID uart0
+// #define BAUD_RATE 115200
+// #define UART_TX_PIN 0
+// #define UART_RX_PIN 1
+
+// // Buffer for receiving data
+// #define BUFF_SIZE 256
+
+// #define MOVEMENT_THRESHOLD 1
+// #define WATER_LEVEL_TOLERANCE 0.3 // +/- 0.3% around the target 75%
+
+
+// // Global State Variables
+// bool direction = false; // CW=0, CCW=1
+// int pot_percent; // 0 inititially
+// int water_percent;
+
+// int submit = 0;
+// bool clue_obtained = false; // New state to track if RFID clue is found
+// bool puzzle_solved = false; // New state to prevent re-pumping after success
+// bool pumped_out_sucessfully = false;
+
+// char text_buffer[BUFF_SIZE];
+
+// // Global MFRC522 pointer from RFID driver
+// extern MFRC522Ptr_t mfrc; // Must be declared to use PICC_HaltA
+
+// void uart_init_custom() {
+//     // Initialize UART
+//     uart_init(UART_ID, BAUD_RATE);
+    
+//     // Set the TX and RX pins
+//     gpio_set_function(UART_TX_PIN, GPIO_FUNC_UART);
+//     gpio_set_function(UART_RX_PIN, GPIO_FUNC_UART);
+    
+//     // Enable UART FIFO
+//     uart_set_fifo_enabled(UART_ID, true);
+// }
+
+// void send_ocr_request() {
+//     const char *command = "START_OCR\n";
+//     uart_puts(UART_ID, command);
+//     printf("Sent: START_OCR\n");
+// }
+
+// bool receive_ocr_response(char *buffer, size_t buffer_size) {
+//     uint32_t timeout = 10000; // 10 seconds timeout in ms
+//     uint32_t start_time = to_ms_since_boot(get_absolute_time());
+//     int index = 0;
+    
+//     while ((to_ms_since_boot(get_absolute_time()) - start_time) < timeout) {
+//         if (uart_is_readable(UART_ID)) {
+//             char c = uart_getc(UART_ID);
+            
+//             if (c == '\n') {
+//                 buffer[index] = '\0';
+//                 return true;
+//             }
+            
+//             if (index < buffer_size - 1) {
+//                 buffer[index++] = c;
+//             }
+//         }
+//         sleep_ms(10);
+//     }
+    
+//     printf("Timeout waiting for OCR response\n");
+//     return false;
+// }
+// void lcd_show_target(int target_level){
+//     send_command(LCD_CLEARDISPLAY);
+//     lcd_set_cursor(0,0);
+//     char buf[16];
+//     snprintf(buf, sizeof(buf), "TGT LVL:%d unt", target_level);
+//     lcd_print(buf);
+//     // lcd_print("TGT LVL:750 unit");
+// }
+// // ----------------------------
+// // RFID Functions - integer 750
+// // ----------------------------
+// bool rfid_get_clue() {
+//     // Use rfid_driver_poll to check for a new card and update rfid_state
+//     const char* uid_str = rfid_driver_poll(&rfid_state);
+
+//     if (uid_str) {
+//         printf("NEW CARD DETECTED! UID: %s\n", uid_str);
+        
+//         uint16_t clue_value = 0;
+        
+//         // Attempt to read the clue block
+//         if (rfid_read_uint16(RFID_CLUE_BLOCK, &clue_value, &rfid_state)) {
+//             printf("[RFID] Read clue: %u\n", clue_value);
+            
+//             if(clue_value == TARGET_CLUE_VALUE){
+//                 // Only show the target when the correct card is scanned
+//                 lcd_show_target(TARGET_CLUE_VALUE); 
+//                 return true;
+//             }
+//         } else {
+//             // Print error if read failed (e.g., Auth failed)
+//             printf("[RFID] Failed to read clue block %d\n", RFID_CLUE_BLOCK);
+//         }
+        
+//         // Halt the PICC immediately to ensure a clean re-authentication 
+//         PICC_HaltA(mfrc); 
+//     }
+    
+//     // If no card or incorrect clue, check if the card is currently present (for puzzle continuation)
+//     // The original logic only proceeds if rfid_get_clue() returns true *this cycle*.
+//     // However, since the polling and halting is inside, this function now strictly returns 
+//     // true only when a NEW card with the correct clue is detected.
+    
+//     // To match the original flow where the check only happens on detection, 
+//     // we return false if no valid clue was found on polling.
+//     return false;
+// }
+
+// // Retained for initial setup/testing
+// bool rfid_write_test_clue() {
+//     printf("Writing RFID clue %u to block %d...\n", TARGET_CLUE_VALUE, RFID_CLUE_BLOCK);
+
+//     if (rfid_write_uint16(RFID_CLUE_BLOCK, TARGET_CLUE_VALUE, &rfid_state)) {
+//         printf("RFID write OK\n");
+//         return true;
+//     } else {
+//         printf("RFID write FAILED\n");
+//         return false;
+//     }
+// }
+
+// void pump_in(){
+//     water_pump_set_direction(true);
+//     water_pump_set_speed(pot_percent); 
+
+
+// }
+// void pump_out(){
+//     water_pump_set_direction(false);
+//     water_pump_set_speed(100-pot_percent); 
+
+// }
+
+// void lcd_update_current(){
+//     water_percent = read_water_percent();
+//     lcd_set_cursor(0, 1);
+//     lcd_print("Water:");
+//     lcd_print_number(water_percent);
+//     lcd_print("%   "); // Clear extra characters
+// }
+
+// void lcd_show_success() {
+//     send_command(LCD_CLEARDISPLAY);
+//     lcd_set_cursor(0, 0);
+//     lcd_print("Correct Level!");
+//     lcd_set_cursor(0, 1);
+//     lcd_print("Proceed...");
+// }
+
+// void perform_ocr(){
+//     send_ocr_request();
+
+//     if (receive_ocr_response(text_buffer, BUFF_SIZE)) {
+//         sleep_ms(500);
+//         LED_off();
+
+//         send_command(LCD_CLEARDISPLAY);
+//         lcd_set_cursor(0, 0);
+//         lcd_print("Clue:");
+//         lcd_set_cursor(0, 1);
+//         lcd_print(text_buffer);
+
+//         printf("%s\n", text_buffer);
+//         } else {
+//             send_command(LCD_CLEARDISPLAY);
+//             lcd_print("OCR Timeout!");
+//             LED_off();
+//         }
+// }
+
+// int main() {
+//     stdio_init_all();
+//     uart_init_custom();
+    
+//     printf("Station Flow Test\n");
+//     sleep_ms(2000);
+    
+//     // ---------- Init Drivers ----------
+//     lcd_init();
+//     potentiometer_init();
+//     button_init();
+//     water_sensor_init();
+//     water_pump_init();
+//     LED_init();
+//     rfid_init();
+//     rfid_driver_init(&rfid_state);
+
+//     // Optional: write test clue 750 to RFID block (uncomment for first run)
+//     // To use this, you need a card on the reader and must pause/handle 
+//     // the card polling loop to ensure it's not active.
+//     // rfid_write_test_clue(); 
+//     // sleep_ms(2000);
+
+
+//     // Variables for pot tracking
+//     int prev_pot = read_potentiometer_mapped(0, 100);
+
+//    while (true) {
+//         // ----------------------------
+//         // Check RFID for the numeric clue
+//         // ----------------------------
+//         // rfid_get_clue() now handles polling for a NEW card and reading the block.
+//         // It returns true only if a NEW card with the correct clue is detected.
+//         if (rfid_get_clue()) {
+
+//             // When a NEW card is detected, the puzzle state is 'pumped_out_sucessfully'.
+//             if (pumped_out_sucessfully) {
+                
+//                 // --- POTENTIOMETER CONTROL ---
+//                 pot_percent = read_potentiometer_mapped(0, 100);
+//                 int diff = pot_percent - prev_pot;
+
+//                 // Stop the pump first
+//                 water_pump_set_speed(0);
+
+//                 // Determine rotation direction and pump
+//                 if (diff > MOVEMENT_THRESHOLD) {
+//                     printf("CW (value increasing)\n");
+//                     pump_in();
+//                     prev_pot = pot_percent;
+//                 } else if (diff < -MOVEMENT_THRESHOLD) {
+//                     printf("CCW (value decreasing)\n");
+//                     pump_out();
+//                     prev_pot = pot_percent;
+//                 }
+//             }
+
+//             // --- WATER LEVEL & LCD UPDATE ---
+//             lcd_update_current();
+
+//             // --- SUBMIT BUTTON CHECK ---
+//             if (was_button_just_pressed()) {
+//                 printf("Button Pressed!\n");
+//                 submit = 1;
+//                 sleep_ms(250);
+
+//                 // Check tolerance: 75.0% +/- 0.3%
+//                 if (water_percent > 75.3 || water_percent < 74.7) {
+//                     // Wrong level - show failure message
+//                     send_command(LCD_CLEARDISPLAY);
+//                     lcd_set_cursor(0, 0);
+//                     lcd_print("Wrong Level!");
+//                     lcd_set_cursor(0, 1);
+//                     lcd_print("Resetting...");
+//                     printf("Water level incorrect: %d%%. Resetting tank.\n", water_percent);
+//                     sleep_ms(1000);
+                    
+//                     // Empty tank to minimum level
+//                     // Pump at full speed (100-pot_percent is used by pump_out, but 
+//                     // for reset, direct full speed is better)
+//                     water_pump_set_direction(false);
+//                     water_pump_set_speed(100); 
+//                     while (read_water_percent() > 5) { // Pump until near 0%
+//                         sleep_ms(50);
+//                     }
+//                     water_pump_set_speed(0); // Stop pump
+                    
+//                     pumped_out_sucessfully = true;
+//                     submit = 0;
+                    
+//                     // Show target again after reset
+//                     lcd_show_target(TARGET_CLUE_VALUE);
+//                 } else {
+//                     // Correct level! Show success message
+//                     printf("Correct water level achieved: %d%%\n", water_percent);
+//                     lcd_show_success();
+//                     sleep_ms(1500);
+                    
+//                     // Turn on UV LED to reveal hidden text
+//                     printf("Activating UV LED...\n");
+//                     LED_on();
+//                     sleep_ms(1000); 
+                    
+//                     // Scan the revealed text with camera OCR
+//                     printf("Starting OCR scan...\n");
+//                     perform_ocr();
+                    
+//                     // Keep the clue displayed
+//                     submit = 0;
+//                 }
+//             }
+//         }
+
+//         sleep_ms(50); // Small polling delay
+//     }
+// }
+
+// #define TEST_VALUE 750
+
+// int main() {
+//     stdio_init_all();
+//     sleep_ms(1000);
+
+//     printf("RFID / NTAG / MIFARE Test Program\n");
+
+//     rfid_init();
+//     rfid_driver_init(&rfid_state);
+
+//     lcd_init();
+//     send_command(LCD_CLEARDISPLAY);
+
+//     printf("[MAIN] Waiting for cards...\n");
+
+//     uint8_t target_block = 4; 
+//     uint16_t value_to_write = TEST_VALUE;
+    
+//     while (1) {
+//         const char* uid_str = rfid_driver_poll(&rfid_state);
+
+//         if (uid_str) {
+//             printf("NEW CARD DETECTED! UID: %s\n", uid_str);
+            
+//             // --- MIFARE Classic Read/Write ---
+
+//             // --- 1. WRITE OPERATION ---
+//             // printf("Attempting to WRITE value %u to block %u...\n", value_to_write, target_block);
+//             // if (rfid_write_uint16(target_block, value_to_write, &rfid_state)) {
+//             //     printf("Successfully wrote value %u to block %u.\n", value_to_write, target_block);
+//             // } else {
+//             //     printf("Failed to write value %u to block %u.\n", value_to_write, target_block);
+//             // }
+
+//             // // --- CRITICAL FIX: Introduce a pause for card stability ---
+//             // // This small pause allows the card to recover from the write command.
+//             // sleep_ms(2000); 
+
+//             // --- 2. READ OPERATION ---
+//             uint16_t read_value = 0;
+//             printf("Attempting to READ value from block %u...\n", target_block);
+             
+//                 if (rfid_read_uint16(target_block, &read_value, &rfid_state)) {
+//                     printf("Successfully read value: %u\n", read_value);
+//                 } else {
+//                     printf("Failed to read value from block %u.\n");
+//                 }
+
+
+//             // Halt the card to ensure a clean re-detection on the next loop
+//             PICC_HaltA(mfrc); 
+//         }
+//     }
+//     return 0;
+// }
+
 #include <stdio.h>
 #include <stdbool.h>
 #include "pico/stdlib.h"
@@ -802,13 +1172,13 @@
 
 #define MOVEMENT_THRESHOLD 1
 
-RFID_State rfid_state;
-
-bool direction = false;//CW=0, CCW=1
-int pot_percent;//0 inititially
+bool direction = false; // CW=0, CCW=1
+int pot_percent; // 0 inititially
 int water_percent;
 
 int submit = 0;
+bool clue_obtained = false; // New state to track if RFID clue is found
+bool puzzle_solved = false; // New state to prevent re-pumping after success
 bool pumped_out_sucessfully = false;
 
 char text_buffer[BUFF_SIZE];
@@ -855,6 +1225,7 @@ bool receive_ocr_response(char *buffer, size_t buffer_size) {
     printf("Timeout waiting for OCR response\n");
     return false;
 }
+
 void lcd_show_target(int target_level){
     send_command(LCD_CLEARDISPLAY);
     lcd_set_cursor(0,0);
@@ -863,27 +1234,69 @@ void lcd_show_target(int target_level){
     lcd_print(buf);
     // lcd_print("TGT LVL:750 unit");
 }
+
 // ----------------------------
 // RFID Functions - integer 750
 // ----------------------------
 bool rfid_get_clue() {
-    uint16_t clue_value = 0;
-    if (!rfid_read_uint16(RFID_CLUE_BLOCK, &clue_value, &rfid_state)) {
-        return false;
+    // Use rfid_driver_poll to check for a new card and update rfid_state
+    const char* uid_str = rfid_driver_poll(&rfid_state);
+
+    if (uid_str) {
+        printf("[RFID] NEW CARD DETECTED! UID: %s\n", uid_str);
+        
+        uint16_t clue_value = 0;
+        
+        // Attempt to read the clue block
+        if (rfid_read_uint16(RFID_CLUE_BLOCK, &clue_value, &rfid_state)) {
+            printf("[RFID] Read clue: %u\n", clue_value);
+            
+            if(clue_value == 750){
+                // Only show the target when the correct card is scanned
+                lcd_show_target(750); 
+                clue_obtained = true;
+                return true;
+            }
+            else {
+                    send_command(LCD_CLEARDISPLAY);
+                    lcd_set_cursor(0, 0);
+                    lcd_print("Wrong Card!");
+                    lcd_set_cursor(0,1);
+                    lcd_print("Scan RFID tag");
+                    printf("[RFID] Incorrect clue value: %u\n", clue_value);
+                    clue_obtained = false;
+                    return false;
+                }
+        } else {
+            // Print error if read failed (e.g., Auth failed)
+            printf("[RFID] Failed to read clue block %d\n", RFID_CLUE_BLOCK);
+            return false;
+        }
+        
+        // Halt the PICC immediately to ensure a clean re-authentication 
+        PICC_HaltA(mfrc); 
     }
-    if(clue_value == 750){
-        lcd_show_target(750);
-    }
-    return (clue_value == 750);
+    
+    // If no card or incorrect clue, check if the card is currently present (for puzzle continuation)
+    // The original logic only proceeds if rfid_get_clue() returns true *this cycle*.
+    // However, since the polling and halting is inside, this function now strictly returns 
+    // true only when a NEW card with the correct clue is detected.
+    
+    // To match the original flow where the check only happens on detection, 
+    // we return false if no valid clue was found on polling.
+    return false;
 }
 
-void rfid_write_test_clue() {
-    printf("Writing RFID clue 750 to block %d...\n", RFID_CLUE_BLOCK);
+// Retained for initial setup/testing
+bool rfid_write_test_clue() {
+    printf("Writing RFID clue %u to block %d...\n", 750, RFID_CLUE_BLOCK);
 
     if (rfid_write_uint16(RFID_CLUE_BLOCK, 750, &rfid_state)) {
         printf("RFID write OK\n");
+        return true;
     } else {
         printf("RFID write FAILED\n");
+        return false;
     }
 }
 
@@ -898,7 +1311,6 @@ void pump_out(){
     water_pump_set_speed(100-pot_percent); 
 
 }
-
 void lcd_update_current(){
     water_percent = read_water_percent();
     lcd_set_cursor(0, 1);
@@ -935,108 +1347,107 @@ void perform_ocr(){
             LED_off();
         }
 }
-
-int main() {
+int main(){
     stdio_init_all();
     uart_init_custom();
     
     printf("Station Flow Test\n");
     sleep_ms(2000);
-//     // ---------- Init Drivers ----------
+
+    // ---------- Init Drivers ----------
     lcd_init();
-
     potentiometer_init();
-
     button_init();
-
     water_sensor_init();
-
     water_pump_init();
-
     LED_init();
-
     rfid_init();
-    
     rfid_driver_init(&rfid_state);
 
     // Optional: write test clue 750 to RFID block (uncomment for first run)
     // rfid_write_test_clue();
     // sleep_ms(2000);
 
+    // Initial Display
+    send_command(LCD_CLEARDISPLAY);
+    lcd_set_cursor(0, 0);
+    lcd_print("Scan RFID Tag");
 
     // Variables for pot tracking
     int prev_pot = read_potentiometer_mapped(0, 100);
 
-   while (true) {
-        // ----------------------------
-        // Check RFID for the numeric clue
-        // ----------------------------
-        if (rfid_get_clue()) {
+    while(true){
+        if(!clue_obtained){
+                rfid_get_clue();
+        }
 
-            if (pumped_out_sucessfully) {
+        if(clue_obtained && !puzzle_solved){
+                printf("[PUZZLE] Clue 750 found. Starting puzzle.\n");
                 pot_percent = read_potentiometer_mapped(0, 100);
+                printf("[PUZZLE] potentiometer: %d\n", pot_percent);
                 int diff = pot_percent - prev_pot;
+                printf("[PUZZLE] difference: %d\n", diff);
 
                 // Determine rotation direction
                 if (diff > MOVEMENT_THRESHOLD) {
-                    printf("CW (value increasing)\n");
+                    printf("[PUZZLE] CW (value increasing)\n");
                     pump_in();
                     prev_pot = pot_percent;
                 } else if (diff < -MOVEMENT_THRESHOLD) {
-                    printf("CCW (value decreasing)\n");
+                    printf("[PUZZLE] CCW (value decreasing)\n");
                     pump_out();
                     prev_pot = pot_percent;
                 }
-            }
+                lcd_update_current();
+                // submit = (was_button_just_pressed())? 1:0;
+                if (was_button_just_pressed()){
+                    printf("[PUZZLE] Button Pressed! Current water level: %d%%\n", water_percent);
+                    float target_level = (float)750 / 10.0f; // 750 -> 75.0%
+                    float water_f = (float)water_percent;
+                    sleep_ms(250);
 
-            lcd_update_current();
-
-            if (was_button_just_pressed()) {
-                printf("Button Pressed!\n");
-                submit = 1;
-                sleep_ms(250);
-
-                if (water_percent > 75.3 || water_percent < 74.7) {
-                    // Wrong level - show failure message
-                    send_command(LCD_CLEARDISPLAY);
-                    lcd_set_cursor(0, 0);
-                    lcd_print("Wrong Level!");
-                    lcd_set_cursor(0, 1);
-                    lcd_print("Resetting...");
-                    printf("Water level incorrect: %d%%. Resetting tank.\n", water_percent);
-                    sleep_ms(1000);
-                    
-                    // Empty tank to minimum level
-                    while (read_water_percent() > 0) {
-                        pump_out();
-                    }
-                    pumped_out_sucessfully = true;
-                    submit = 0;
-                    
-                    // Show target again after reset
-                    lcd_show_target(750);
-                } else {
-                    // Correct level! Show success message
-                    printf("Correct water level achieved: %d%%\n", water_percent);
-                    lcd_show_success();
-                    sleep_ms(1500);
-                    
-                    // Turn on UV LED to reveal hidden text
-                    printf("Activating UV LED...\n");
-                    LED_on();
-                    sleep_ms(1000);  // Give time for UV to illuminate the hidden text
-                    
-                    // Scan the revealed text with camera OCR
-                    printf("Starting OCR scan...\n");
-                    perform_ocr();
-                    
-                    // Keep the clue displayed
-                    submit = 0;
-                }
-            }
+                    if (water_f > (target_level + 3) || 
+                    water_f < (target_level - 3)) {
+                        // Wrong level - show failure message
+                        send_command(LCD_CLEARDISPLAY);
+                        lcd_set_cursor(0, 0);
+                        lcd_print("Wrong Level!");
+                        lcd_set_cursor(0, 1);
+                        lcd_print("Resetting...");
+                        printf("[PUZZLE] Water level incorrect: %d%%. Resetting tank.\n", water_percent);
+                        sleep_ms(1000);                
+                        // Empty tank to minimum level (pump at full speed)
+                        water_pump_set_direction(false);
+                        water_pump_set_speed(100); 
+                        while (read_water_percent() > 5) { // Pump until near 0%
+                            sleep_ms(50);
+                        }
+                        water_pump_set_speed(0); // Stop pump
+                        pumped_out_sucessfully = true;
+                        submit = 0;  
+                        
+                        // Show target again after reset
+                        lcd_show_target(750);
+                    } else {
+                        // Correct level! Show success message
+                        printf("[PUZZLE] Correct water level achieved: %d%%\n", water_percent);
+                        puzzle_solved = true; // Lock the puzzle state
+                        lcd_show_success();
+                        sleep_ms(1500);  
+                        // Turn on UV LED to reveal hidden text
+                        printf("[PUZZLE] Activating UV LED...\n");  
+                        LED_on();     
+                        sleep_ms(1000);  // Give time for UV to illuminate the hidden text
+                        
+                        // Scan the revealed text with camera OCR
+                        printf("[PUZZLE] Starting OCR scan...\n");
+                        perform_ocr();
+                        
+                        // Keep the clue displayed
+                        submit = 0;                               
+                    }              
+                }    
         }
-
-        sleep_ms(50); // Small polling delay
+        sleep_ms(50); // Small polling delay    
     }
 }
-
