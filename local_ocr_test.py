@@ -368,12 +368,12 @@ while True:
                 # 4. Prepare and Send Response ONLY IF IT'S A MATCH
                 if is_match:
                     # Send the clean text (e.g., "MIX 9:5:2")
-                    final_response = f"{clean_text}\n" 
+                    final_response = f"{REFERENCE_TEXT}\n" 
                     ser.write(final_response.encode('utf-8'))
                     
                     # Update display feedback
                     display_color = (0, 255, 0) # Green
-                    display_text = f"SUCCESS! Sent: '{final_response.strip()}' (Sim: {similarity}%)"
+                    display_text = f"SUCCESS! Sent: '{REFERENCE_TEXT}' (OCR: '{clean_text}', Sim: {similarity}%)"
                     print(f"[RP2040] Response sent: '{clean_text}' (Sim: {similarity}%)")
                 else:
                     # Do NOT send anything back to the serial port.
