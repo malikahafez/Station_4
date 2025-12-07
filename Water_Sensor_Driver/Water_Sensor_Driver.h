@@ -28,6 +28,7 @@
 // Function declarations
 void water_sensor_init();
 int read_water_raw();
+int read_water_raw_filtered();
 int read_water_percent();
 
 

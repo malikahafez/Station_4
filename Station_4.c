@@ -1171,10 +1171,13 @@
 #define BUFF_SIZE 256
 
 #define MOVEMENT_THRESHOLD 1
+#define TARGET_WATER_LEVEL 750
+#define WATER_LEVEL_TOLERANCE 3
 
 bool direction = false; // CW=0, CCW=1
 int pot_percent; // 0 inititially
-int water_percent;
+//int water_percent;
+int water_level_raw;
 
 int submit = 0;
 bool clue_obtained = false; // New state to track if RFID clue is found
@@ -1344,11 +1347,15 @@ void pump_out(){
 
 }
 void lcd_update_current(){
-    water_percent = read_water_percent();
+    //water_percent = read_water_percent();
+    water_level_raw = read_water_raw_filtered();
     lcd_set_cursor(0, 1);
-    lcd_print("Water:");
-    lcd_print_number(water_percent);
-    lcd_print("%   "); // Clear extra characters
+    //     lcd_print("Water:");
+    // lcd_print_number(water_percent);
+    // lcd_print("%   "); // Clear extra characters
+    lcd_print("Level:");
+    lcd_print_number(water_level_raw);
+    lcd_print("    "); // Clear extra characters
 }
 
 void lcd_show_success() {
@@ -1433,25 +1440,30 @@ int main(){
                 lcd_update_current();
                 // submit = (was_button_just_pressed())? 1:0;
                 if (was_button_just_pressed()){
-                    printf("[PUZZLE] Button Pressed! Current water level: %d%%\n", water_percent);
-                    float target_level = (float)750 / 10.0f; // 750 -> 75.0%
-                    float water_f = (float)water_percent;
+                    //    printf("[PUZZLE] Button Pressed! Current water level: %d%%\n", water_percent);
+                    // float target_level = (float)750 / 10.0f; // 750 -> 75.0%
+                    // float water_f = (float)water_percent;
+                    printf("[PUZZLE] Button Pressed! Current water level: %d units\n", water_level_raw);
                     sleep_ms(250);
-
-                    if (water_f > (target_level + 3) || 
-                    water_f < (target_level - 3)) {
+                     
+                    // if (water_f > (target_level + 3) || 
+                    // water_f < (target_level - 3)) {
+                    if (water_level_raw > (TARGET_WATER_LEVEL + WATER_LEVEL_TOLERANCE) || 
+                        water_level_raw < (TARGET_WATER_LEVEL - WATER_LEVEL_TOLERANCE)) {
                         // Wrong level - show failure message
                         send_command(LCD_CLEARDISPLAY);
                         lcd_set_cursor(0, 0);
                         lcd_print("Wrong Level!");
                         lcd_set_cursor(0, 1);
                         lcd_print("Resetting...");
-                        printf("[PUZZLE] Water level incorrect: %d%%. Resetting tank.\n", water_percent);
+                        //printf("[PUZZLE] Water level incorrect: %d%%. Resetting tank.\n", water_percent);
+                        printf("[PUZZLE] Water level incorrect: %d units. Resetting tank.\n", water_level_raw);
                         sleep_ms(1000);                
                         // Empty tank to minimum level (pump at full speed)
                         water_pump_set_direction(false);
                         water_pump_set_speed(100); 
-                        while (read_water_percent() > 5) { // Pump until near 0%
+                       //  while (read_water_percent() > 5) { // Pump until near 0%
+                        while (read_water_raw_filtered() > 400) {
                             sleep_ms(50);
                         }
                         water_pump_set_speed(0); // Stop pump
@@ -1462,7 +1474,8 @@ int main(){
                         lcd_show_target(750);
                     } else {
                         // Correct level! Show success message
-                        printf("[PUZZLE] Correct water level achieved: %d%%\n", water_percent);
+                       // printf("[PUZZLE] Correct water level achieved: %d%%\n", water_percent);
+                        printf("[PUZZLE] Correct water level achieved: %d units\n", water_level_raw);
                         puzzle_solved = true; // Lock the puzzle state
                         lcd_show_success();
                         sleep_ms(1500);  

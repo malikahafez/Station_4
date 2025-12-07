@@ -26,6 +26,40 @@ int read_water_raw() {
     return adc_read();
 }
 
+// Moving average filter for water sensor readings
+#define FILTER_WINDOW_SIZE 10
+int read_water_raw_filtered() {
+    static int readings[FILTER_WINDOW_SIZE] = {0};
+    static int read_index = 0;
+    static int total = 0;
+    static bool initialized = false;
+    
+    // Initialize the filter on first call
+    if (!initialized) {
+        for (int i = 0; i < FILTER_WINDOW_SIZE; i++) {
+            readings[i] = read_water_raw();
+            total += readings[i];
+            sleep_ms(5);
+        }
+        initialized = true;
+    }
+    
+    // Subtract the oldest reading
+    total -= readings[read_index];
+    
+    // Read new value
+    readings[read_index] = read_water_raw();
+    
+    // Add the new reading
+    total += readings[read_index];
+    
+    // Advance to the next position
+    read_index = (read_index + 1) % FILTER_WINDOW_SIZE;
+    
+    // Return the average
+    return total / FILTER_WINDOW_SIZE;
+}
+
 // Map raw water sensor to 0-100% with rounding
 int read_water_percent() {
     static int last_raw = 0;        // last stable ADC reading
