@@ -1347,9 +1347,19 @@ void pump_out(){
 
 }
 void lcd_update_current(){
+    static int last_raw = 0;
+    const int hysteresis = 4; // Adjust as needed to reduce jitter
+    
+    int raw_value = read_water_raw_filtered();
+        // Apply hysteresis to reduce jitter
+    if (abs(raw_value - last_raw) >= hysteresis) {
+        water_level_raw = raw_value - 1000;
+        if(water_level_raw < 0) water_level_raw = 0;
+        last_raw = raw_value;
+    }
     //water_percent = read_water_percent();
-    water_level_raw = read_water_raw_filtered()-800; // Adjusted for calibration
-    if(water_level_raw < 0) water_level_raw = 0; // Clamp to 0 minimum
+    // water_level_raw = read_water_raw_filtered()-800; // Adjusted for calibration
+    // if(water_level_raw < 0) water_level_raw = 0; // Clamp to 0 minimum
     lcd_set_cursor(0, 1);
     //     lcd_print("Water:");
     // lcd_print_number(water_percent);
@@ -1468,7 +1478,7 @@ int main(){
                         water_pump_set_direction(false);
                         water_pump_set_speed(100); 
                        //  while (read_water_percent() > 5) { // Pump until near 0%
-                        while (read_water_raw_filtered()-800 > 0) {
+                        while (read_water_raw_filtered()-1000 > 0) {
                             sleep_ms(50);
                         }
                         water_pump_set_speed(0); // Stop pump
@@ -1499,7 +1509,7 @@ int main(){
                     }              
                 }    
         }
-        sleep_ms(200); // Small polling delay    
+        sleep_ms(100); // Small polling delay    
     }
 }
 
