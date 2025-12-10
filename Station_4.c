@@ -1231,7 +1231,7 @@ void send_ocr_request() {
 // }
 // Using stdio for USB Serial
 bool receive_ocr_response(char *buffer, size_t buffer_size) {
-    uint32_t timeout_ms = 10000; // 10 seconds timeout
+    uint32_t timeout_ms = 20000; // 20 seconds timeout
     uint32_t start_time = to_ms_since_boot(get_absolute_time());
     int index = 0;
     
@@ -1348,7 +1348,8 @@ void pump_out(){
 }
 void lcd_update_current(){
     //water_percent = read_water_percent();
-    water_level_raw = read_water_raw_filtered();
+    water_level_raw = read_water_raw_filtered()-800; // Adjusted for calibration
+    if(water_level_raw < 0) water_level_raw = 0; // Clamp to 0 minimum
     lcd_set_cursor(0, 1);
     //     lcd_print("Water:");
     // lcd_print_number(water_percent);
@@ -1384,6 +1385,10 @@ void perform_ocr(){
             send_command(LCD_CLEARDISPLAY);
             lcd_print("OCR Timeout!");
             LED_off();
+            //reset puzzle state
+            clue_obtained = false;
+            puzzle_solved = false;
+            
         }
 }
 int main(){
@@ -1463,7 +1468,7 @@ int main(){
                         water_pump_set_direction(false);
                         water_pump_set_speed(100); 
                        //  while (read_water_percent() > 5) { // Pump until near 0%
-                        while (read_water_raw_filtered() > 400) {
+                        while (read_water_raw_filtered()-800 > 0) {
                             sleep_ms(50);
                         }
                         water_pump_set_speed(0); // Stop pump
@@ -1494,6 +1499,79 @@ int main(){
                     }              
                 }    
         }
-        sleep_ms(50); // Small polling delay    
+        sleep_ms(200); // Small polling delay    
     }
 }
+
+//OCR test
+// int main() {
+//     stdio_init_all();
+//     sleep_ms(2000);
+    
+//     printf("=== OCR Test Started ===\n");
+    
+//     // Initialize LCD and LED
+//     lcd_init();
+//     LED_init();
+    
+//     // Initial display
+//     lcd_set_cursor(0, 0);
+//     lcd_print("OCR Test");
+//     lcd_set_cursor(0, 1);
+//     lcd_print("Starting...");
+    
+//     sleep_ms(2000);
+    
+//     char text_buffer[BUFF_SIZE];
+    
+//     while (true) {
+//         printf("\n[OCR] Sending OCR request...\n");
+        
+//         // Clear LCD
+//         send_command(LCD_CLEARDISPLAY);
+//         lcd_set_cursor(0, 0);
+//         lcd_print("Scanning...");
+        
+//         // Turn on LED during scan
+//         LED_on();
+        
+//         // Send OCR request
+//         send_ocr_request();
+//         sleep_ms(500);
+        
+//         // Wait for response
+//         if (receive_ocr_response(text_buffer, BUFF_SIZE)) {
+//             printf("[OCR] Response received: %s\n", text_buffer);
+            
+//             // Turn off LED
+//             LED_off();
+            
+//             // Display result on LCD
+//             send_command(LCD_CLEARDISPLAY);
+//             lcd_set_cursor(0, 0);
+//             lcd_print("Result:");
+//             lcd_set_cursor(0, 1);
+//             lcd_print(text_buffer);
+            
+//             printf("[OCR] Displaying result for 5 seconds...\n");
+//             sleep_ms(5000);
+//         } else {
+//             printf("[OCR] No response received - timeout\n");
+//             LED_off();
+            
+//             send_command(LCD_CLEARDISPLAY);
+//             lcd_set_cursor(0, 0);
+//             lcd_print("OCR Failed!");
+//             lcd_set_cursor(0, 1);
+//             lcd_print("Timeout");
+            
+//             sleep_ms(3000);
+//         }
+        
+//         // Wait before next scan
+//         printf("[OCR] Ready for next scan...\n");
+//         sleep_ms(2000);
+//     }
+    
+//     return 0;
+// }
