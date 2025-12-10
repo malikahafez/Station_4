@@ -1231,7 +1231,7 @@ void send_ocr_request() {
 // }
 // Using stdio for USB Serial
 bool receive_ocr_response(char *buffer, size_t buffer_size) {
-    uint32_t timeout_ms = 20000; // 20 seconds timeout
+    uint32_t timeout_ms = 30000; // 30 seconds timeout
     uint32_t start_time = to_ms_since_boot(get_absolute_time());
     int index = 0;
     
