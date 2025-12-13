@@ -36,13 +36,13 @@ The Pico SDK should be installed at `%USERPROFILE%\.pico-sdk\`. If not installed
 3. The build output will be generated in the `build/` directory
 4. The compiled `.uf2` file will be at `build/Station_4.uf2`
 
-### 3. Flash to Raspberry Pi Pico
+### 3. Flash to Arduino Nano RP2040
 
-1. Hold the **BOOTSEL** button on your Pico
+1. Hold the **BOOTSEL** button on your Arduino Nano RP2040
 2. Connect it to your computer via USB
-3. Release the button - Pico will appear as a USB drive
+3. Release the button - the board will appear as a USB drive
 4. Copy `build/Station_4.uf2` to the USB drive
-5. The Pico will automatically reboot with the new firmware
+5. The Arduino Nano RP2040 will automatically reboot with the new firmware
 
 ## Running the Project
 
