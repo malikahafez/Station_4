@@ -13,7 +13,7 @@ Tests that the drivers are working -->
 
 # Station 4 - Embedded Systems Project
 
-Multi-sensor and actuator control system built on Arduino Nano (RP2040).
+Multi-sensor and actuator control system built on Arduino Nano (RP2040) Connect.
 
 ## Prerequisites
 
@@ -36,21 +36,25 @@ The Pico SDK should be installed at `%USERPROFILE%\.pico-sdk\`. If not installed
 3. The build output will be generated in the `build/` directory
 4. The compiled `.uf2` file will be at `build/Station_4.uf2`
 
-### 3. Flash to Arduino Nano RP2040
+### 3. Flash to Arduino Nano RP2040 Connect
 
-1. Hold the **BOOTSEL** button on your Arduino Nano RP2040
-2. Connect it to your computer via USB
-3. Release the button - the board will appear as a USB drive
-4. Copy `build/Station_4.uf2` to the USB drive
-5. The Arduino Nano RP2040 will automatically reboot with the new firmware
+1. Connect the Arduino Nano RP2040 Connect to your computer via USB
+2. Connect the RESET and GND pins on the Arduino Nano RP2040 Connect using a male to male wire
+3. Click the **BOOTSEL** button 
+4. Remove the male to male wire
+5. The board will appear as a USB drive
+6. Copy `build/Station_4.uf2` to the USB drive
+7. The Arduino Nano RP2040 will automatically reboot with the new firmware
+
+_Check out the [Arduino Nano RP2040 Connect documentation](https://docs.arduino.cc/micropython/board-examples/nano-rp2040-connect/) for reference:_
 
 ## Running the Project
 
 Once flashed, the system will start automatically. The LCD will display system status and sensor readings.
 
-### Optional: OCR Server
+### OCR Server
 
-If using OCR validation:
+OCR validation:
 
 1. Install Python dependencies:
    ```bash
@@ -59,6 +63,6 @@ If using OCR validation:
 
 2. Run the OCR server:
    ```bash
-   python3 pi_OCR_Server.py
+   python3 local_ocr_test.py
    ```
 
