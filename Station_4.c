@@ -1482,12 +1482,6 @@ int main(){
                     pump_out();
                     prev_pot = pot_percent;
                 }
-                else if(pot_percent == 50){
-                // *** FIX: Stop both motors when no significant movement is detected (Pot at rest) ***
-                printf("[PUZZLE] No significant movement - Pumps OFF\n");
-                water_pump_set_speed(0); // Assuming this stops both pumps
-
-                }
                 lcd_update_current();
                 // submit = (was_button_just_pressed())? 1:0;
                 if (was_button_just_pressed()){
