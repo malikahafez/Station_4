@@ -1263,6 +1263,7 @@ bool receive_ocr_response(char *buffer, size_t buffer_size) {
 
 void lcd_show_target(int target_level){
     send_command(LCD_CLEARDISPLAY);
+    sleep_ms(2);
     lcd_set_cursor(0,0);
     char buf[16];
     snprintf(buf, sizeof(buf), "TGT LVL:%d unit", target_level);
@@ -1294,6 +1295,7 @@ bool rfid_get_clue() {
             }
             else {
                     send_command(LCD_CLEARDISPLAY);
+                    sleep_ms(2);
                     lcd_set_cursor(0, 0);
                     lcd_print("Wrong Card!");
                     lcd_set_cursor(0,1);
@@ -1371,6 +1373,7 @@ void lcd_update_current(){
 
 void lcd_show_success() {
     send_command(LCD_CLEARDISPLAY);
+    sleep_ms(2);
     lcd_set_cursor(0, 0);
     lcd_print("Correct Level!");
     lcd_set_cursor(0, 1);
@@ -1385,6 +1388,7 @@ void perform_ocr(){
         LED_off();
 
         send_command(LCD_CLEARDISPLAY);
+        sleep_ms(2);
         lcd_set_cursor(0, 0);
         lcd_print("Clue:");
         lcd_set_cursor(0, 1);
@@ -1393,6 +1397,7 @@ void perform_ocr(){
         printf("%s\n", text_buffer);
         } else {
             send_command(LCD_CLEARDISPLAY);
+            sleep_ms(2);
             lcd_print("OCR Timeout!");
             LED_off();
             //reset puzzle state
@@ -1402,6 +1407,7 @@ void perform_ocr(){
         }
 }
 int main(){
+
     stdio_init_all();
     // uart_init_custom();
     
@@ -1424,6 +1430,7 @@ int main(){
 
     // Initial Display
     send_command(LCD_CLEARDISPLAY);
+    sleep_ms(2);
     lcd_set_cursor(0, 0);
     lcd_print("Scan RFID Tag");
 
@@ -1431,6 +1438,28 @@ int main(){
     int prev_pot = read_potentiometer_mapped(0, 100);
 
     while(true){
+        if(was_reset_button_just_pressed()){
+            printf("[PUZZLE] Reset button pressed. Resetting puzzle state.\n");
+            clue_obtained = false;
+            puzzle_solved = false;
+            pumped_out_sucessfully = false;
+            send_command(LCD_CLEARDISPLAY);
+            sleep_ms(2);
+            lcd_set_cursor(0, 0);
+            lcd_print("Scan RFID Tag");
+            sleep_ms(1000);
+            if(read_water_raw_filtered()-1000 > 0){
+                // Empty tank to minimum level (pump at full speed)
+                water_pump_set_direction(false);
+                water_pump_set_speed(100); 
+                // Pump until near 0%
+                while (read_water_raw_filtered()-1000 > 0) {
+                    sleep_ms(50);
+                }
+                water_pump_set_speed(0); // Stop pump
+            }
+            pot_percent = read_potentiometer_mapped(0, 100);
+        }
         if(!clue_obtained){
                 rfid_get_clue();
         }
@@ -1452,6 +1481,12 @@ int main(){
                     pump_out();
                     prev_pot = pot_percent;
                 }
+                else if(pot_percent == 50){
+                // *** FIX: Stop both motors when no significant movement is detected (Pot at rest) ***
+                printf("[PUZZLE] No significant movement - Pumps OFF\n");
+                water_pump_set_speed(0); // Assuming this stops both pumps
+
+                }
                 lcd_update_current();
                 // submit = (was_button_just_pressed())? 1:0;
                 if (was_button_just_pressed()){
@@ -1467,6 +1502,7 @@ int main(){
                         water_level_raw < (TARGET_WATER_LEVEL - WATER_LEVEL_TOLERANCE)) {
                         // Wrong level - show failure message
                         send_command(LCD_CLEARDISPLAY);
+                        sleep_ms(2);
                         lcd_set_cursor(0, 0);
                         lcd_print("Wrong Level!");
                         lcd_set_cursor(0, 1);
@@ -1493,21 +1529,42 @@ int main(){
                         printf("[PUZZLE] Correct water level achieved: %d units\n", water_level_raw);
                         puzzle_solved = true; // Lock the puzzle state
                         lcd_show_success();
+                        water_pump_off();
                         sleep_ms(1500);  
                         // Turn on UV LED to reveal hidden text
                         printf("[PUZZLE] Activating UV LED...\n");  
                         LED_on();     
                         sleep_ms(10000);  // Give time for UV to illuminate the hidden text
-                        
                         // Scan the revealed text with camera OCR
                         printf("[PUZZLE] Starting OCR scan...\n");
                         perform_ocr();
-                        water_pump_off();
+                        
                         
                         // Keep the clue displayed
                         submit = 0;                               
                     }              
                 }    
+        }
+        if(was_reset_button_just_pressed()){
+            printf("[PUZZLE] Reset button pressed. Resetting puzzle state.\n");
+            clue_obtained = false;
+            puzzle_solved = false;
+            pumped_out_sucessfully = false;
+            send_command(LCD_CLEARDISPLAY);
+            sleep_ms(2);
+            lcd_set_cursor(0, 0);
+            lcd_print("Scan RFID Tag");
+            sleep_ms(1000);
+            if(read_water_raw_filtered()-1000 > 0){
+                // Empty tank to minimum level (pump at full speed)
+                water_pump_set_direction(false);
+                water_pump_set_speed(100); 
+                // Pump until near 0%
+                while (read_water_raw_filtered()-1000 > 0) {
+                    sleep_ms(50);
+                }
+                water_pump_set_speed(0); // Stop pump
+            }
         }
         sleep_ms(100); // Small polling delay    
     }
@@ -1539,6 +1596,7 @@ int main(){
         
 //         // Clear LCD
 //         send_command(LCD_CLEARDISPLAY);
+            // sleep_ms(2);
 //         lcd_set_cursor(0, 0);
 //         lcd_print("Scanning...");
         
@@ -1558,6 +1616,7 @@ int main(){
             
 //             // Display result on LCD
 //             send_command(LCD_CLEARDISPLAY);
+//             sleep_ms(2);
 //             lcd_set_cursor(0, 0);
 //             lcd_print("Result:");
 //             lcd_set_cursor(0, 1);
@@ -1570,6 +1629,7 @@ int main(){
 //             LED_off();
             
 //             send_command(LCD_CLEARDISPLAY);
+//             sleep_ms(2);
 //             lcd_set_cursor(0, 0);
 //             lcd_print("OCR Failed!");
 //             lcd_set_cursor(0, 1);

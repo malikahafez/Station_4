@@ -11,8 +11,14 @@
 
 static volatile bool button_state = HIGH;      // Default state is HIGH (not pressed with pull-up)
 static volatile bool last_button_state = HIGH; // Previous reading is HIGH
+
+static volatile bool button_state_reset = HIGH;      // Default state is HIGH (not pressed with pull-up)
+static volatile bool last_button_state_reset = HIGH; // Previous reading is HIGH
 // Time variables need to store milliseconds using absolute_time_us_t 
 static absolute_time_t last_debounce_time_abs; // Use Pico's absolute time structure
+
+static absolute_time_t last_debounce_time_abs_reset; // Use Pico's absolute time structure
+
 
 // Helper function to get current time in milliseconds (Pico SDK style)
 long get_millis() {
@@ -26,8 +32,13 @@ void button_init() {
     gpio_set_dir(BUTTON_PIN, GPIO_IN); // Set direction to input
     gpio_pull_up(BUTTON_PIN);        // Enable internal pull-up resistor
 
+    gpio_init(RESET_BUTTON_PIN);           // Initialize the pin
+    gpio_set_dir(RESET_BUTTON_PIN, GPIO_IN); // Set direction to input
+    gpio_pull_up(RESET_BUTTON_PIN);        // Enable internal pull-up resistor
+
     // Initialize the debounce timer start point
     last_debounce_time_abs = get_absolute_time();
+    last_debounce_time_abs_reset = get_absolute_time();
 }
 
 bool is_button_pressed() {
@@ -55,6 +66,31 @@ bool is_button_pressed() {
     return (button_state == LOW); 
 }
 
+bool is_reset_button_pressed() {
+    // Use the SDK function gpio_get() instead of digitalRead()
+    // gpio_get() returns true (HIGH) or false (LOW)
+    bool reading = gpio_get(RESET_BUTTON_PIN); 
+
+    if (reading != last_button_state_reset) {
+        // Record the time of the first change
+        last_debounce_time_abs_reset = get_absolute_time();
+    }
+
+    // Calculate time elapsed since last state change in milliseconds
+    long time_since_change = to_ms_since_boot(get_absolute_time()) - to_ms_since_boot(last_debounce_time_abs_reset);
+
+    if (time_since_change > DEBOUNCE_DELAY) {
+        if (reading != button_state_reset) {
+            button_state_reset = reading;
+        }
+    }
+
+    last_button_state_reset = reading;
+    
+    // Logic Inversion: Return TRUE only when the physical pin reads LOW (pressed)
+    return (button_state_reset == LOW); 
+}
+
 bool was_button_just_pressed() {
     static bool previous_press_state = false;
     // Call the updated is_button_pressed which uses Pico SDK time functions
@@ -67,5 +103,20 @@ bool was_button_just_pressed() {
     }
     
     previous_press_state = current_press_state;
+    return false; // No new press event
+}
+
+bool was_reset_button_just_pressed() {
+    static bool previous_press_state_reset = false;
+    // Call the updated is_reset_button_pressed which uses Pico SDK time functions
+    bool current_press_state_reset = is_reset_button_pressed(); 
+
+    // Check for a transition from not-pressed (false) to pressed (true)
+    if (current_press_state_reset == true && previous_press_state_reset == false) {
+        previous_press_state_reset = current_press_state_reset;
+        return true; // A new press event occurred
+    }
+    
+    previous_press_state_reset = current_press_state_reset;
     return false; // No new press event
 }

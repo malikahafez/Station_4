@@ -29,7 +29,7 @@ void send_nibble(uint8_t nibble, uint8_t mode) {
     i2c_send_byte(output | (1 << EN_PIN));   // Enable High
     sleep_us(1); // Use SDK sleep function
     i2c_send_byte(output & ~(1 << EN_PIN));  // Enable Low
-    sleep_us(100); // Use SDK sleep function
+    sleep_us(1000); // Use SDK sleep function
 }
 
 // Send a command to the LCD controller
@@ -44,8 +44,10 @@ void send_command(uint8_t command) {
 void send_data(uint8_t data) {
     // Send high nibble, with RS pin HIGH (data mode)
     send_nibble(data & 0xF0, (1 << RS_PIN));
+    sleep_us(5);
     // Send low nibble, with RS pin HIGH (data mode)
     send_nibble((data << 4) & 0xF0, (1 << RS_PIN));
+    sleep_us(500);
 }
 
 // Initialize the LCD using Pico SDK
