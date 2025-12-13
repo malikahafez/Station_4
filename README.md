@@ -13,7 +13,7 @@ Tests that the drivers are working -->
 
 # Station 4 - Embedded Systems Project
 
-Multi-sensor and actuator control system built on Raspberry Pi Pico (RP2040).
+Multi-sensor and actuator control system built on Arduino Nano (RP2040).
 
 ## Prerequisites
 
