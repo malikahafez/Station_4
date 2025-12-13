@@ -27,7 +27,7 @@ int read_water_raw() {
 }
 
 // Moving average filter for water sensor readings
-#define FILTER_WINDOW_SIZE 10
+#define FILTER_WINDOW_SIZE 30
 int read_water_raw_filtered() {
     static int readings[FILTER_WINDOW_SIZE] = {0};
     static int read_index = 0;
