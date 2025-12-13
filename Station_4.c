@@ -1443,6 +1443,7 @@ int main(){
             clue_obtained = false;
             puzzle_solved = false;
             pumped_out_sucessfully = false;
+            water_pump_set_speed(0);
             send_command(LCD_CLEARDISPLAY);
             sleep_ms(2);
             lcd_set_cursor(0, 0);
@@ -1550,6 +1551,7 @@ int main(){
             clue_obtained = false;
             puzzle_solved = false;
             pumped_out_sucessfully = false;
+            water_pump_set_speed(0);
             send_command(LCD_CLEARDISPLAY);
             sleep_ms(2);
             lcd_set_cursor(0, 0);
